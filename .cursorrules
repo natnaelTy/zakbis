@@ -1,0 +1,38 @@
+Context: I am building a P2P logistics platform connecting the USA, CHINA, DUBAI, UK to Ethiopia.
+Stack: Next.js (App Router), Tailwind CSS, shadcn/ui, Lucide React, and Supabase.
+Design Philosophy: Minimalist, high-contrast, black-and-white (Uber-style). 
+Color Palette:
+- Primary: Black (#000000) and White (#FFFFFF)
+- Background: White (var(--background)) and Slate-50 (#F8FAFC)
+- Cards: White or very light gray with minimal to zero shadow, pure black borders (border-black/5 or border-black/10)
+
+Design Elements:
+- Absolute minimalism. Stark contrast.
+- Strict layout grid. High readability.
+- Rounded corners for buttons and cards (typical shadcn/ui defaults or md/lg).
+
+Task: Build the Core Application Structure with the following flows:
+
+1. Database & Auth (Supabase):
+Create a profiles table with roles: SENDER, TRAVELER, RECEIVER.
+Create a trips table that supports two types: TRIANGULAR (3-party) and BUY_ME (2-party).
+For Travelers: Only require flight_number, departure_date, and destination_city.
+
+2. The 'Triangular' Delivery Flow (3-Person):
+Implement a search feature for Senders/Receivers to find Travelers by flight info.
+Tracking Page: Build a shared view with a progress stepper: [Sender] -> [Traveler] -> [Receiver].
+Group Chat: Use Supabase Realtime to build a 3-way chat window (Sender + Traveler + Receiver).
+
+3. The 'Buy Me' Feature (2-Person):
+Create a dedicated 'Shopping Hub' where Receivers can post product links.
+Direct Chat: Build a 1-on-1 private chat between Traveler and Receiver.
+Action: Add a button for the Traveler to upload an image of the purchase receipt to move the state to 'Purchased'.
+
+4. Role-Based Dashboard UI:
+Use shadcn/ui Tabs and Cards.
+Conditional Views: If role is TRAVELER, show 'My Earnings' and 'Available Requests'. If SENDER/RECEIVER, show 'My Packages' and 'Post Request'.
+Use high-contrast active states.
+
+5. Visual Requirements:
+Maintain the Uber-style black and white high contrast theme.
+Ensure the mobile navigation bar has 4 icons: Home, Send, Chat, Profile.
