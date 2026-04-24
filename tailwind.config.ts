@@ -50,6 +50,12 @@ const config: Config = {
   			card: {
   				DEFAULT: 'hsl(var(--card) / <alpha-value>)',
   				foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
+  			},
+  			brand: {
+  				green: '#047857',
+  				greenLight: '#10b981',
+  				rose: '#E11D48',
+  				sand: '#F5F5F4'
   			}
   		},
   		borderRadius: {
