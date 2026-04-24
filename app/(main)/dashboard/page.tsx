@@ -25,7 +25,7 @@ export default async function DashboardPage() {
   if (!profile) redirect("/auth/login");
 
   return (
-    <main className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pt-8">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pt-8">
       {/* Greeting */}
       <div className="mb-6">
         <p className="text-sm text-slate-500 font-medium">Selam 👋</p>
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Role badge */}
-      <div className="inline-flex items-center gap-1.5 bg-black text-white text-xs font-semibold px-3 py-1.5 rounded-full mb-8">
+      <div className="inline-flex items-center gap-1.5 bg-brand-green text-white shadow-sm ring-1 ring-black/5 text-xs font-semibold px-3 py-1.5 rounded-full mb-8">
         <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
         {profile.role}
       </div>
