@@ -166,7 +166,7 @@ export function SenderReceiverDashboard({ profile }: SenderReceiverDashboardProp
                 <div
                   key={pkg.id}
                   onClick={() => router.push(`/delivery/${pkg.id}`)}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-black/5 bg-white hover:border-black/20 transition-colors cursor-pointer"
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-black/5 bg-white shadow-sm hover:shadow-md hover:border-brand-green/20  transition-colors cursor-pointer"
                 >
                   <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center shrink-0`}>
                     <Package size={16} className={color} />
