@@ -92,15 +92,15 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">
         <Link
-          href="/traveler/flight-entry"
+          href="/traveler/trips"
           className="flex flex-col gap-3 p-4 rounded-2xl border border-black/10 bg-slate-50 hover:bg-slate-100 transition-colors"
         >
-          <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center">
-            <Plus size={16} className="text-white" />
+          <div className="w-9 h-9 bg-brand-green rounded-xl flex items-center justify-center shadow-sm">
+            <Plane size={16} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-black">Add Trip</div>
-            <div className="text-xs text-slate-500 mt-0.5">List your flight</div>
+            <div className="text-sm font-semibold text-black">My Trips</div>
+            <div className="text-xs text-slate-500 mt-0.5">Manage flights</div>
           </div>
         </Link>
         <Link
@@ -143,7 +143,7 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
                 <div
                   key={req.id}
                   onClick={() => router.push(`/delivery/${req.id}`)}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-black/5 bg-white hover:border-black/20 transition-colors cursor-pointer"
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-black/5 bg-white shadow-sm hover:shadow-md hover:border-brand-green/20  transition-colors cursor-pointer"
                 >
                   <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
                     <Plane size={16} className="text-black" />
