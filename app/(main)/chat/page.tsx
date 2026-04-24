@@ -13,6 +13,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUnread } from "@/components/app/unread-provider";
 
 interface Chat {
   id: string;
@@ -36,6 +37,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "triangular" | "buy_me">("all");
+  const { chats: unreadChats, total: totalUnread } = useUnread();
 
   useEffect(() => {
     loadChats();
@@ -74,14 +76,21 @@ export default function ChatPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
-        <h1 className="text-base font-bold text-black flex-1">Chats ({chats.length})</h1>
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
+        <h1 className="text-base font-bold text-black flex-1">
+          Chats ({chats.length})
+          {totalUnread > 0 && (
+            <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-brand-rose text-white text-[10px] font-bold px-1.5">
+              {totalUnread > 99 ? "99+" : totalUnread}
+            </span>
+          )}
+        </h1>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
           <Plus size={20} />
         </Button>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4">
         {/* Search and Filters */}
         <div className="flex items-center gap-2 mb-4">
           <div className="relative flex-1">
@@ -97,7 +106,7 @@ export default function ChatPage() {
           <button
             onClick={() => setSearchQuery("")}
             className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${
-              searchQuery ? "bg-black text-white" : "bg-slate-100 text-slate-400"
+              searchQuery ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" : "bg-slate-100 text-slate-400"
             }`}
           >
             {searchQuery ? <X size={16} /> : <Search size={16} />}
@@ -111,7 +120,7 @@ export default function ChatPage() {
             className={`
               px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
               ${filter === "all" 
-                ? "bg-black text-white" 
+                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" 
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }
             `}
@@ -123,7 +132,7 @@ export default function ChatPage() {
             className={`
               px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
               ${filter === "triangular" 
-                ? "bg-black text-white" 
+                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" 
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }
             `}
@@ -135,7 +144,7 @@ export default function ChatPage() {
             className={`
               px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
               ${filter === "buy_me" 
-                ? "bg-black text-white" 
+                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" 
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }
             `}
@@ -186,12 +195,12 @@ export default function ChatPage() {
               <Link
                 key={chat.id}
                 href={`/chat/${chat.id}`}
-                className="flex items-center gap-3 p-4 rounded-2xl border border-black/5 bg-white hover:border-black/10 transition-colors"
+                className="flex items-center gap-3 p-4 rounded-2xl border border-black/5 bg-slate-50 shadow-sm hover:shadow-md hover:border-brand-green/20 transition-colors relative"
               >
                 {/* Avatar placeholder */}
                 <div className={`
                   w-10 h-10 rounded-full flex items-center justify-center shrink-0
-                  ${chat.chatType === "GROUP" ? "bg-black text-white" : "bg-slate-200 text-black"}
+                  ${chat.chatType === "GROUP" ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" : "bg-slate-200 text-black"}
                 `}>
                   {chat.chatType === "GROUP" ? (
                     <Plane size={16} />
@@ -225,6 +234,13 @@ export default function ChatPage() {
                 </div>
 
                 <ChevronRight size={16} className="text-slate-300 shrink-0" />
+
+                {/* Unread badge */}
+                {(unreadChats[chat.id] ?? 0) > 0 && (
+                  <span className="absolute top-3 right-3 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-brand-rose text-white text-[10px] font-bold px-1.5 shadow-sm">
+                    {unreadChats[chat.id] > 99 ? "99+" : unreadChats[chat.id]}
+                  </span>
+                )}
               </Link>
             ))
           )}
