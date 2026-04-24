@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -45,7 +46,7 @@ export default function SignupPage() {
     setError(null);
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError("Password must be at least 6 characters"); toast.error("Password must be at least 6 characters");
       setLoading(false);
       return;
     }
@@ -64,7 +65,7 @@ export default function SignupPage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Signup failed");
+      setError(payload?.error ?? "Signup failed"); toast.error(payload?.error ?? "Signup failed");
       setLoading(false);
       return;
     }
@@ -187,7 +188,7 @@ export default function SignupPage() {
 
                 <button
                   type="submit"
-                  className="w-full h-11 bg-black text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-black/80 transition-colors mt-2"
+                  className="w-full h-11 bg-brand-green text-white shadow-sm ring-1 ring-black/5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-brand-greenLight transition-colors transition-colors mt-2"
                 >
                   Continue <ArrowRight size={16} />
                 </button>
@@ -212,7 +213,7 @@ export default function SignupPage() {
                       onClick={() => setRole(value)}
                       className={`w-full flex items-center gap-5 p-6 rounded-2xl border-2 text-left transition-all ${
                         role === value
-                          ? "border-black bg-black text-white shadow-lg"
+                          ? "border-black bg-brand-green text-white shadow-sm ring-1 ring-black/5 shadow-lg"
                           : "border-black/10 bg-slate-50 text-black hover:border-black/30 hover:shadow-md"
                       }`}
                     >
@@ -234,7 +235,7 @@ export default function SignupPage() {
                           role === value ? "border-white bg-white" : "border-black/20"
                         }`}
                       >
-                        {role === value && <div className="w-2.5 h-2.5 rounded-full bg-black" />}
+                        {role === value && <div className="w-2.5 h-2.5 rounded-full bg-brand-green" />}
                       </div>
                     </button>
                   ))}
@@ -258,7 +259,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 h-11 bg-black text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 h-11 bg-brand-green text-white shadow-sm ring-1 ring-black/5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-brand-greenLight transition-colors transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <Loader2 size={16} className="animate-spin" />
