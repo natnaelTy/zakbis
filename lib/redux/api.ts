@@ -141,6 +141,24 @@ export const zakbisApi = createApi({
   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
   tagTypes: ["Trips", "TripDetail", "DeliveryRequest", "DeliveryRequestDetail"],
   endpoints: (builder) => ({
+    getMyTrips: builder.query<any[], void>({
+      query: () => "trips/me",
+      transformResponse: (response: { data: any[] }) => response.data,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((trip) => ({ type: "Trips" as const, id: trip.id })),
+              { type: "Trips" as const, id: "LIST" },
+            ]
+          : [{ type: "Trips" as const, id: "LIST" }],
+    }),
+    cancelTrip: builder.mutation<{ success: boolean }, string>({
+      query: (tripId) => ({
+        url: `trips/${tripId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Trips"],
+    }),
     searchTrips: builder.query<TripSearchItem[], SearchTripsArgs | void>({
       query: (args) => {
         const params = new URLSearchParams();
@@ -161,6 +179,15 @@ export const zakbisApi = createApi({
               { type: "Trips" as const, id: "LIST" },
             ]
           : [{ type: "Trips" as const, id: "LIST" }],
+    }),
+    searchBuyMe: builder.query<any[], string | void>({
+      query: (destination) => {
+        const params = new URLSearchParams();
+        if (destination && destination !== "__any__") {
+          params.set("destination", destination);
+        }
+        return `buy-me-requests/search?${params.toString()}`;
+      },
     }),
     getTripById: builder.query<TripDetailItem, string>({
       query: (tripId) => `trips/${tripId}`,
@@ -243,6 +270,19 @@ export const zakbisApi = createApi({
         { type: "DeliveryRequest", id: "LIST" },
       ],
     }),
+    // Cancel a PENDING delivery request
+    cancelDeliveryRequest: builder.mutation<{ id: string; status: string }, string>({
+      query: (requestId) => ({
+        url: `delivery-requests/${requestId}/cancel`,
+        method: "DELETE",
+      }),
+      transformResponse: (response: { data: { id: string; status: string } }) => response.data,
+      invalidatesTags: (_result, _error, requestId) => [
+        { type: "DeliveryRequestDetail", id: requestId },
+        { type: "DeliveryRequest", id: requestId },
+        { type: "DeliveryRequest", id: "LIST" },
+      ],
+    }),
   }),
 });
 
@@ -257,4 +297,10 @@ export const {
   useEnsureDeliveryChatMutation,
   useGetDeliveryRequestByIdQuery,
   useAdvanceDeliveryStatusMutation,
+  useCancelDeliveryRequestMutation,
+  useGetMyTripsQuery,
+  useCancelTripMutation,
+  useSearchBuyMeQuery,
+  useLazySearchBuyMeQuery,
 } = zakbisApi;
+
