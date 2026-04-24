@@ -42,6 +42,8 @@ export async function middleware(request: NextRequest) {
   const roleAccess: Record<string, string[]> = {
     '/buy-me': ['TRAVELER', 'RECEIVER'],
     '/triangular': ['SENDER', 'RECEIVER'],
+    '/delivery': ['SENDER', 'TRAVELER', 'RECEIVER'],
+    '/traveler': ['TRAVELER'],
     '/chat': ['SENDER', 'TRAVELER', 'RECEIVER'],
     '/profile': ['SENDER', 'TRAVELER', 'RECEIVER'],
   };
