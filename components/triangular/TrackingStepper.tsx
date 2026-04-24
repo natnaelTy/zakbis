@@ -5,7 +5,7 @@ import { Check, Plane, Package, Box, Truck, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
-type DeliveryStatus = 
+type DeliveryStatus =
   | "pending"
   | "matched"
   | "picked_up"
@@ -13,7 +13,7 @@ type DeliveryStatus =
   | "arrived"
   | "delivered";
 
-type BuyMeStatus = 
+type BuyMeStatus =
   | "open"
   | "accepted"
   | "purchased"
@@ -25,27 +25,27 @@ interface TrackingStepperProps {
   className?: string;
 }
 
-export function TrackingStepper({ 
-  status, 
-  deliveryType, 
-  className 
+export function TrackingStepper({
+  status,
+  deliveryType,
+  className
 }: TrackingStepperProps) {
   // Define steps based on delivery type
-  const steps = deliveryType === "triangular" 
+  const steps = deliveryType === "triangular"
     ? [
-        { id: "pending", label: "Request Made", icon: Package, active: false },
-        { id: "matched", label: "Traveler Found", icon: Truck, active: false },
-        { id: "picked_up", label: "Picked Up", icon: Plane, active: false },
-        { id: "in_transit", label: "In Transit", icon: Plane, active: false },
-        { id: "arrived", label: "Arrived", icon: Box, active: false },
-        { id: "delivered", label: "Delivered", icon: Check, active: false },
-      ]
+      { id: "pending", label: "Request Made", icon: Package, active: false },
+      { id: "matched", label: "Traveler Found", icon: Truck, active: false },
+      { id: "picked_up", label: "Picked Up", icon: Plane, active: false },
+      { id: "in_transit", label: "In Transit", icon: Plane, active: false },
+      { id: "arrived", label: "Arrived", icon: Box, active: false },
+      { id: "delivered", label: "Delivered", icon: Check, active: false },
+    ]
     : [
-        { id: "open", label: "Request Posted", icon: Package, active: false },
-        { id: "accepted", label: "Traveler Accepted", icon: Truck, active: false },
-        { id: "purchased", label: "Purchased", icon: Box, active: false },
-        { id: "delivered", label: "Delivered", icon: Check, active: false },
-      ];
+      { id: "open", label: "Request Posted", icon: Package, active: false },
+      { id: "accepted", label: "Traveler Accepted", icon: Truck, active: false },
+      { id: "purchased", label: "Purchased", icon: Box, active: false },
+      { id: "delivered", label: "Delivered", icon: Check, active: false },
+    ];
 
   const currentIndex = steps.findIndex((s) => s.id === status);
 
@@ -55,10 +55,10 @@ export function TrackingStepper({
         <div className="flex items-center justify-between relative">
           {/* Progress Line */}
           <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -z-0" />
-          
+
           {/* Active Progress Line */}
-          <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-black -z-0 transition-all duration-500"
+          <div
+            className="absolute top-1/2 left-0 h-0.5 bg-brand-green -z-0 transition-all duration-500"
             style={{ width: `${(currentIndex + 1) / steps.length * 100}%` }}
           />
 
@@ -69,27 +69,28 @@ export function TrackingStepper({
 
             return (
               <div key={step.id} className="flex flex-col items-center gap-2 relative z-10">
-                <div 
+                <div
                   className={`
                     w-8 h-8 rounded-full flex items-center justify-center
                     transition-all duration-300
-                    ${isCompleted || isActive 
-                      ? "bg-black text-white" 
-                      : "bg-slate-100 text-slate-400 border border-slate-200"
+                    ${isCompleted
+                      ? "bg-brand-green text-white shadow-md shadow-brand-green/20"
+                      : isActive
+                        ? "bg-brand-greenLight text-white shadow-lg shadow-brand-greenLight/30 animate-pulse-glow ring-2 ring-brand-green/30 ring-offset-2"
+                        : "bg-slate-100 text-slate-400 border border-slate-200"
                     }
-                    ${isActive ? "ring-2 ring-black ring-offset-2" : ""}
                   `}
                 >
                   {isCompleted ? (
-                    <Check size={14} strokeWidth={3} />
+                    <Check size={16} strokeWidth={3} className="text-white" />
                   ) : (
-                    <Icon size={14} className={isActive ? "text-black" : "text-slate-400"} />
+                    <Icon size={14} className={isActive ? "text-white" : "text-slate-400"} />
                   )}
                 </div>
-                <span 
+                <span
                   className={`
                     text-xs font-medium transition-colors duration-300
-                    ${isActive || isCompleted ? "text-black" : "text-slate-400"}
+                    ${isActive ? "text-brand-green font-bold" : isCompleted ? "text-brand-green" : "text-slate-400"}
                   `}
                 >
                   {step.label}
@@ -105,8 +106,8 @@ export function TrackingStepper({
             {steps[currentIndex]?.label}
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            {deliveryType === "triangular" 
-              ? status === "delivered" 
+            {deliveryType === "triangular"
+              ? status === "delivered"
                 ? "Package successfully delivered!"
                 : status === "pending"
                   ? "Waiting for traveler to match..."
@@ -155,12 +156,12 @@ export function TrackingStepper({
 }
 
 // Simple progress bar for Buy Me requests
-export function BuyMeProgress({ 
-  status, 
-  className 
-}: { 
-  status: BuyMeStatus; 
-  className?: string; 
+export function BuyMeProgress({
+  status,
+  className
+}: {
+  status: BuyMeStatus;
+  className?: string;
 }) {
   const steps = [
     { id: "open", label: "Posted" },
@@ -177,29 +178,31 @@ export function BuyMeProgress({
         {steps.map((step, index) => {
           const isCompleted = index < currentIndex;
           const isActive = index === currentIndex;
-          
+
           return (
             <div key={step.id} className="flex flex-col items-center flex-1 gap-1">
-              <div 
+              <div
                 className={`
                   w-6 h-6 rounded-full flex items-center justify-center border
                   transition-all duration-300
-                  ${isCompleted || isActive 
-                    ? "bg-black border-black text-white" 
-                    : "bg-white border-slate-200 text-slate-300"
+                  ${isCompleted
+                    ? "bg-brand-green border-brand-green text-white shadow-sm shadow-brand-green/20"
+                    : isActive
+                      ? "bg-brand-greenLight border-brand-greenLight text-white animate-pulse-glow"
+                      : "bg-white border-slate-200 text-slate-300"
                   }
                 `}
               >
                 {isCompleted ? (
-                  <Check size={10} strokeWidth={3} />
+                  <Check size={10} strokeWidth={3} className="text-white" />
                 ) : (
-                  <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-black" : ""}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-white" : ""}`} />
                 )}
               </div>
-              <span 
+              <span
                 className={`
                   text-[10px] font-medium
-                  ${isActive || isCompleted ? "text-black" : "text-slate-400"}
+                  ${isActive ? "text-brand-green font-bold" : isCompleted ? "text-brand-green" : "text-slate-400"}
                 `}
               >
                 {step.label}
