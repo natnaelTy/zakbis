@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -13,6 +14,9 @@ import {
   Clock3,
   Truck,
   MessageCircle,
+  Upload,
+  Receipt,
+  PackageCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +50,7 @@ interface BuyMeRequest {
 
 const statusStyles: Record<BuyMeRequest["status"], string> = {
   OPEN: "bg-slate-100 text-slate-700",
-  ACCEPTED: "bg-black text-white",
+  ACCEPTED: "bg-brand-green text-white shadow-sm ring-1 ring-black/5",
   PURCHASED: "bg-slate-200 text-slate-800",
   DELIVERED: "bg-green-100 text-green-700",
   CANCELLED: "bg-red-100 text-red-600",
@@ -62,6 +66,11 @@ export default function BuyMePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [requests, setRequests] = useState<BuyMeRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Receipt upload state
+  const [receiptUrl, setReceiptUrl] = useState<Record<string, string>>({});
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [deliveringId, setDeliveringId] = useState<string | null>(null);
 
   // Receiver form
   const [productName, setProductName] = useState("");
@@ -91,7 +100,7 @@ export default function BuyMePage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not load Buy Me requests.");
+      setError(payload?.error ?? "Could not load Buy Me requests."); toast.error(payload?.error ?? "Could not load Buy Me requests.");
       setLoading(false);
       return;
     }
@@ -125,7 +134,7 @@ export default function BuyMePage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not create request.");
+      setError(payload?.error ?? "Could not create request."); toast.error(payload?.error ?? "Could not create request.");
       setSubmitting(false);
       return;
     }
@@ -136,6 +145,7 @@ export default function BuyMePage() {
     setEstimatedPrice("");
     setNotes("");
     setSubmitting(false);
+    toast.success("Request posted successfully");
     await loadData();
   }
 
@@ -154,7 +164,7 @@ export default function BuyMePage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not accept request.");
+      setError(payload?.error ?? "Could not accept request."); toast.error(payload?.error ?? "Could not accept request.");
       setAcceptingId(null);
       return;
     }
@@ -169,6 +179,59 @@ export default function BuyMePage() {
     await loadData();
   }
 
+  async function uploadReceipt(requestId: string) {
+    const url = receiptUrl[requestId]?.trim();
+    if (!url) {
+      setError("Please enter a receipt URL"); toast.error("Please enter a receipt URL");
+      return;
+    }
+
+    setUploadingId(requestId);
+    setError(null);
+
+    const response = await fetch("/api/buy-me-requests/receipt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId, receiptUrl: url }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      setError(payload?.error ?? "Could not upload receipt."); toast.error(payload?.error ?? "Could not upload receipt.");
+      setUploadingId(null);
+      return;
+    }
+
+    setUploadingId(null);
+    toast.success("Receipt uploaded. It is now marked as purchased.");
+    setReceiptUrl((prev) => ({ ...prev, [requestId]: "" }));
+    await loadData();
+  }
+
+  async function confirmDelivery(requestId: string) {
+    setDeliveringId(requestId);
+    setError(null);
+
+    const response = await fetch("/api/buy-me-requests/receipt", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      setError(payload?.error ?? "Could not confirm delivery."); toast.error(payload?.error ?? "Could not confirm delivery.");
+      setDeliveringId(null);
+      return;
+    }
+
+    setDeliveringId(null);
+    toast.success("Delivery confirmed!");
+    await loadData();
+  }
+
   const receiverRequests = useMemo(() => requests, [requests]);
   const travelerOpen = useMemo(() => requests.filter((r) => r.status === "OPEN"), [requests]);
   const travelerMine = useMemo(
@@ -178,14 +241,14 @@ export default function BuyMePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
         <Link href="/dashboard" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
           <ArrowLeft size={18} className="text-black" />
         </Link>
         <h1 className="text-base font-bold text-black flex-1">Buy Me Hub</h1>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-4">
         {loading ? (
           <div className="h-[60vh] flex items-center justify-center text-slate-500 gap-2">
             <Loader2 size={18} className="animate-spin" />
@@ -264,7 +327,7 @@ export default function BuyMePage() {
                         />
                       </div>
 
-                      <Button type="submit" disabled={submitting} className="w-full h-11 rounded-xl bg-black text-white hover:bg-black/80">
+                      <Button type="submit" disabled={submitting} className="w-full h-11 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors">
                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
                         {submitting ? "Posting..." : "Post Request"}
                       </Button>
@@ -341,7 +404,7 @@ export default function BuyMePage() {
                           <Button
                             onClick={() => acceptRequest(r.id)}
                             disabled={acceptingId === r.id}
-                            className="w-full mt-3 h-10 rounded-xl bg-black text-white hover:bg-black/80"
+                            className="w-full mt-3 h-10 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors"
                           >
                             {acceptingId === r.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
                             {acceptingId === r.id ? "Accepting..." : "Accept Request"}
@@ -361,14 +424,64 @@ export default function BuyMePage() {
                       <p className="text-sm text-slate-500">No accepted jobs yet.</p>
                     ) : (
                       travelerMine.map((r) => (
-                        <div key={r.id} className="rounded-xl border border-black/10 p-3">
+                        <div key={r.id} className="rounded-xl border border-black/10 p-3 space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <p className="text-sm font-semibold text-black truncate">{r.product_name}</p>
-                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${statusStyles[r.status]}`}>
+                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold shrink-0 ${statusStyles[r.status]}`}>
                               {r.status}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 mt-1">Destination: {r.destination}</p>
+                          <p className="text-xs text-slate-500">Destination: {r.destination}</p>
+
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            {r.estimated_price ? <span>${Number(r.estimated_price).toFixed(2)}</span> : <span>Price TBD</span>}
+                            <span>·</span>
+                            <a className="inline-flex items-center gap-1 underline" href={r.product_url} target="_blank" rel="noreferrer">
+                              Product link <ExternalLink size={12} />
+                            </a>
+                          </div>
+
+                          {/* ACCEPTED: Show receipt upload */}
+                          {r.status === "ACCEPTED" && (
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Paste receipt image URL..."
+                                  value={receiptUrl[r.id] ?? ""}
+                                  onChange={(e) => setReceiptUrl((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                                  className="h-9 rounded-lg text-xs flex-1"
+                                />
+                              </div>
+                              <Button
+                                onClick={() => uploadReceipt(r.id)}
+                                disabled={uploadingId === r.id || !(receiptUrl[r.id]?.trim())}
+                                className="w-full h-9 rounded-lg bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors text-xs"
+                              >
+                                {uploadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                {uploadingId === r.id ? "Uploading..." : "Upload Receipt & Mark Purchased"}
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* PURCHASED: Show confirm delivery */}
+                          {r.status === "PURCHASED" && (
+                            <Button
+                              onClick={() => confirmDelivery(r.id)}
+                              disabled={deliveringId === r.id}
+                              className="w-full h-9 rounded-lg bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors text-xs"
+                            >
+                              {deliveringId === r.id ? <Loader2 size={14} className="animate-spin" /> : <PackageCheck size={14} />}
+                              {deliveringId === r.id ? "Confirming..." : "Confirm Delivery"}
+                            </Button>
+                          )}
+
+                          {/* DELIVERED: Show completion */}
+                          {r.status === "DELIVERED" && (
+                            <div className="flex items-center gap-2 text-xs text-green-600 font-medium">
+                              <CheckCircle2 size={14} />
+                              Delivered successfully
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
