@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export default function FlightEntryPage() {
     setError(null);
 
     if (!departureDate) {
-      setError("Please select a departure date.");
+      setError("Please select a departure date."); toast.error("Please select a departure date.");
       setLoading(false);
       return;
     }
@@ -97,19 +98,22 @@ export default function FlightEntryPage() {
     }
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not create trip");
+      setError(payload?.error ?? "Could not create trip"); toast.error(payload?.error ?? "Could not create trip");
       setLoading(false);
       return;
     }
 
     setSuccess(true);
-    setTimeout(() => router.push("/dashboard"), 1800);
+    setTimeout(() => {
+      toast.success("Flight listed successfully");
+      router.push("/dashboard");
+    }, 1800);
   }
 
   if (success) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
-        <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mb-6">
+        <div className="w-16 h-16 bg-brand-green rounded-full shadow-sm text-white flex items-center justify-center mb-6">
           <CheckCircle2 size={28} className="text-white" />
         </div>
         <h2 className="text-2xl font-bold text-black mb-2">Trip Listed!</h2>
@@ -123,7 +127,7 @@ export default function FlightEntryPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
         <Link
           href="/dashboard"
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
@@ -133,7 +137,7 @@ export default function FlightEntryPage() {
         <h1 className="text-base font-bold text-black">List Your Trip</h1>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-6">
         {/* Icon */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center">
@@ -159,7 +163,7 @@ export default function FlightEntryPage() {
                   onClick={() => setTripType(type)}
                   className={`h-11 rounded-xl border-2 text-sm font-semibold transition-all ${
                     tripType === type
-                      ? "border-black bg-black text-white"
+                      ? "border-black bg-brand-green text-white shadow-sm ring-1 ring-black/5"
                       : "border-black/10 bg-slate-50 text-black hover:border-black/30"
                   }`}
                 >
@@ -349,7 +353,7 @@ export default function FlightEntryPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 bg-black text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-black/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-12 bg-brand-green text-white shadow-sm ring-1 ring-black/5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-brand-greenLight transition-colors transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
