@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, Plane, ChevronRight, ArrowLeft, SlidersHorizontal, Star, CalendarIcon, Loader2 } from "lucide-react"
 import Link from "next/link";
@@ -28,6 +28,14 @@ const CITIES = [
 const ANY_CITY = "__any__";
 
 export default function TravelerSearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <TravelerSearchContent />
+    </Suspense>
+  );
+}
+
+function TravelerSearchContent() {
   const searchParams = useSearchParams();
   const initialFrom = searchParams.get("from") ?? "";
   const initialTo = searchParams.get("to") ?? "Addis Ababa";
