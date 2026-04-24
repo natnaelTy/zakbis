@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { use, useState } from "react";
 import Link from "next/link";
@@ -17,6 +18,9 @@ import {
   Weight,
   Calendar,
   AlertCircle,
+  XCircle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +31,7 @@ import {
   useGetDeliveryRequestByIdQuery,
   useAdvanceDeliveryStatusMutation,
   useEnsureDeliveryChatMutation,
+  useCancelDeliveryRequestMutation,
 } from "@/lib/redux/api";
 
 const STATUS_ACTION_LABELS: Record<string, { label: string; description: string }> = {
@@ -54,7 +59,7 @@ function PersonCard({
 }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl border border-black/5 bg-slate-50">
-      <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-bold shrink-0">
+      <div className="w-10 h-10 rounded-full bg-brand-green text-white shadow-sm ring-1 ring-black/5 flex items-center justify-center text-sm font-bold shrink-0">
         {initials(name)}
       </div>
       <div className="min-w-0 flex-1">
@@ -79,6 +84,41 @@ function PersonCard({
   );
 }
 
+function MissingPersonCard({ label, requestId }: { label: string; requestId: string }) {
+  const [copied, setCopied] = useState(false);
+  
+  function handleCopy() {
+    const url = `${window.location.origin}/invite/delivery/${requestId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success("Invite link copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/50">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
+          <User size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Missing {label}</p>
+          <p className="text-sm font-medium text-slate-600">Waiting for {label.toLowerCase()} to join</p>
+        </div>
+      </div>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="w-full text-xs h-9 border-brand-green/20 text-brand-green hover:bg-brand-green/5"
+        onClick={handleCopy}
+      >
+        {copied ? <Check size={14} className="mr-1.5" /> : <Copy size={14} className="mr-1.5" />}
+        {copied ? "Invite Link Copied!" : `Copy ${label} Invite Link`}
+      </Button>
+    </div>
+  );
+}
+
 export default function DeliveryDetailPage({
   params,
 }: {
@@ -89,6 +129,7 @@ export default function DeliveryDetailPage({
   const { data: delivery, isLoading, error } = useGetDeliveryRequestByIdQuery(requestId);
   const [advanceStatus, { isLoading: advancing }] = useAdvanceDeliveryStatusMutation();
   const [ensureChat, { isLoading: ensuringChat }] = useEnsureDeliveryChatMutation();
+  const [cancelRequest, { isLoading: cancelling }] = useCancelDeliveryRequestMutation();
   const [actionError, setActionError] = useState<string | null>(null);
 
   async function handleAdvance() {
@@ -96,7 +137,7 @@ export default function DeliveryDetailPage({
     try {
       await advanceStatus(requestId).unwrap();
     } catch (err: any) {
-      setActionError(err?.data?.error ?? "Failed to advance status");
+      setActionError(err?.data?.error ?? "Failed to advance status"); toast.error(err?.data?.error ?? "Failed to advance status");
     }
   }
 
@@ -118,11 +159,25 @@ export default function DeliveryDetailPage({
   const chatEligible = delivery
     ? ["MATCHED", "PICKED_UP", "IN_TRANSIT", "ARRIVED", "DELIVERED"].includes(delivery.status)
     : false;
+  const canCancel = delivery
+    ? delivery.status === "PENDING" && !delivery.is_traveler
+    : false;
+
+  async function handleCancel() {
+    setActionError(null);
+    try {
+      await cancelRequest(requestId).unwrap();
+      toast.success("Request cancelled");
+      router.push("/dashboard");
+    } catch (err: any) {
+      setActionError(err?.data?.error ?? "Failed to cancel request"); toast.error(err?.data?.error ?? "Failed to cancel request");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
         <button
           onClick={() => router.back()}
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
@@ -132,7 +187,7 @@ export default function DeliveryDetailPage({
         <h1 className="text-base font-bold text-black flex-1">Delivery Details</h1>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-4">
         {isLoading ? (
           <div className="h-[60vh] flex items-center justify-center text-slate-500 gap-2">
             <Loader2 size={18} className="animate-spin" />
@@ -171,7 +226,7 @@ export default function DeliveryDetailPage({
                   <Button
                     onClick={handleAdvance}
                     disabled={advancing}
-                    className="w-full h-11 rounded-xl bg-black text-white hover:bg-black/80"
+                    className="w-full h-11 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors"
                   >
                     {advancing ? (
                       <Loader2 size={16} className="animate-spin" />
@@ -297,6 +352,9 @@ export default function DeliveryDetailPage({
                     verified={delivery.sender.verified}
                   />
                 )}
+                {!delivery.sender && (
+                  <MissingPersonCard label="Sender" requestId={requestId} />
+                )}
                 {delivery.trip?.traveler && (
                   <PersonCard
                     label="Traveler"
@@ -312,6 +370,9 @@ export default function DeliveryDetailPage({
                     rating={delivery.receiver.rating}
                     verified={delivery.receiver.verified}
                   />
+                )}
+                {!delivery.receiver && (
+                  <MissingPersonCard label="Receiver" requestId={requestId} />
                 )}
               </CardContent>
             </Card>
@@ -337,6 +398,36 @@ export default function DeliveryDetailPage({
                 </span>
               </CardContent>
             </Card>
+
+            {/* Cancel button for PENDING requests */}
+            {canCancel && (
+              <Card className="border border-red-100 rounded-2xl shadow-none">
+                <CardContent className="p-4 space-y-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-red-600">Cancel Request</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">This will permanently cancel your delivery request.</p>
+                  </div>
+                  {actionError && (
+                    <div className="rounded-xl bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-600">
+                      {actionError}
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    variant="outline"
+                    className="w-full h-10 rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    {cancelling ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <XCircle size={14} />
+                    )}
+                    {cancelling ? "Cancelling..." : "Cancel This Request"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>
