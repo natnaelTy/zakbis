@@ -8,6 +8,7 @@ export type TripSearchItem = {
   departure_date: string;
   available_weight: number;
   price_per_kg: number;
+  trip_type: "TRIANGULAR" | "BUY_ME";
   profiles: {
     full_name: string;
     rating: number;
