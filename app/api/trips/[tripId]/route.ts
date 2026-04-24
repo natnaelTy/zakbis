@@ -21,6 +21,7 @@ export async function GET(
         available_weight,
         price_per_kg,
         notes,
+        trip_type,
         profiles (
           full_name,
           rating,
@@ -29,7 +30,6 @@ export async function GET(
       `,
     )
     .eq("id", tripId)
-    .eq("trip_type", "TRIANGULAR")
     .eq("status", "OPEN")
     .maybeSingle();
 
