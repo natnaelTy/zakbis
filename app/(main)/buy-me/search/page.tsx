@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, ShoppingBag, ArrowLeft, Loader2, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +25,14 @@ const CITIES = [
 const ANY_CITY = "__any__";
 
 export default function BuyMeSearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+      <BuyMeSearchContent />
+    </Suspense>
+  );
+}
+
+function BuyMeSearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialDestination = searchParams.get("destination") ?? "Addis Ababa";
