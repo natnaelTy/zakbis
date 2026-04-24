@@ -1,4 +1,6 @@
 "use client";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,13 +31,14 @@ export default function LoginPage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Login failed");
+      setError(payload?.error ?? "Login failed"); toast.error(payload?.error ?? "Login failed");
       setLoading(false);
       return;
     }
 
     router.push("/dashboard");
     router.refresh();
+    toast.success("Login success");
   }
 
   return (
@@ -81,7 +84,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-11 rounded-xl bg-black text-white text-sm font-semibold hover:bg-black/80 disabled:opacity-60"
+          className="w-full h-11 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 text-sm font-semibold hover:bg-brand-greenLight transition-colors disabled:opacity-60"
         >
           {loading ? "Logging in..." : "Log in"}
         </button>
