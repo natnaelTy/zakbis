@@ -244,7 +244,6 @@ export function Globe({
           key={m.id}
           style={{
             position: "absolute",
-            // @ts-expect-error CSS Anchor Positioning
             positionAnchor: `--cobe-${m.id}`,
             bottom: "anchor(top)",
             left: "anchor(center)",
@@ -284,7 +283,6 @@ export function Globe({
             key={a.id}
             style={{
               position: "absolute",
-              // @ts-expect-error CSS Anchor Positioning
               positionAnchor: `--cobe-arc-${a.id}`,
               bottom: "anchor(top)",
               left: "anchor(center)",
