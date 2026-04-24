@@ -8,6 +8,7 @@ import { TrackingStepper } from "@/components/triangular/TrackingStepper";
 import { BuyMeProgress } from "@/components/triangular/TrackingStepper";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useUnread } from "@/components/app/unread-provider";
 
 interface ChatDetails {
   id: string;
@@ -26,6 +27,7 @@ export default function ChatDetailPage({
   const [loading, setLoading] = useState(true);
   const [deliveryStatus, setDeliveryStatus] = useState<string>("");
   const [buyMeStatus, setBuyMeStatus] = useState<string>("");
+  const { markRead } = useUnread();
 
   useEffect(() => {
     loadChatDetails();
@@ -68,6 +70,9 @@ export default function ChatDetailPage({
     setDeliveryStatus(data.deliveryStatus ?? "");
     setBuyMeStatus(data.buyMeStatus ?? "");
 
+    // Mark this chat as read
+    markRead(data.id);
+
     setLoading(false);
   };
 
@@ -101,7 +106,7 @@ export default function ChatDetailPage({
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
         <Link 
           href="/chat" 
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
@@ -116,16 +121,16 @@ export default function ChatDetailPage({
         </button>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-4">
         {/* Status Header */}
         <Card className="border border-black/5 p-4">
           <div className="flex items-center gap-3 mb-3">
             {chatDetails.chatType === "GROUP" ? (
-              <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-brand-green to-brand-greenLight rounded-xl flex items-center justify-center text-white shadow-sm">
                 <Package size={20} className="text-white" />
               </div>
             ) : (
-              <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-brand-green to-brand-greenLight rounded-xl flex items-center justify-center text-white shadow-sm">
                 <ShoppingBag size={20} className="text-white" />
               </div>
             )}
