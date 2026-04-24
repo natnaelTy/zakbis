@@ -1,7 +1,9 @@
+import { toast } from "sonner";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  Loader2,
   User,
   ShieldCheck,
   Star,
@@ -106,12 +108,12 @@ export default async function ProfilePage() {
   const rating = Number(profile.rating ?? 0);
 
   return (
-    <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
-      <Card className="border border-black/5 shadow-none rounded-2xl">
+    <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-6 space-y-4">
+      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center text-lg font-bold shrink-0">
+              <div className="w-14 h-14 rounded-full bg-brand-green text-white shadow-sm ring-1 ring-black/5 flex items-center justify-center text-lg font-bold shrink-0">
                 {initials(profile.full_name)}
               </div>
               <div className="min-w-0">
@@ -133,7 +135,7 @@ export default async function ProfilePage() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="w-9 h-9 rounded-xl overflow-hidden border-black/10">
-                    <div className="w-full h-full bg-black text-white flex items-center justify-center text-sm font-bold relative">
+                    <div className="w-full h-full bg-brand-green text-white shadow-sm ring-1 ring-black/5 flex items-center justify-center text-sm font-bold relative">
                       {initials(profile.full_name)}
                       <ChevronDown size={12} className="absolute bottom-1 right-1 text-black" />
                     </div>
@@ -186,7 +188,7 @@ export default async function ProfilePage() {
         initialPhone={profile.phone}
       />
 
-      <Card className="border border-black/5 shadow-none rounded-2xl">
+      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Overview</CardTitle>
         </CardHeader>
@@ -226,7 +228,7 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border border-black/5 shadow-none rounded-2xl">
+      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Quick actions</CardTitle>
         </CardHeader>
@@ -255,7 +257,7 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border border-black/5 shadow-none rounded-2xl">
+      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Recent activity</CardTitle>
         </CardHeader>
@@ -290,7 +292,7 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border border-black/5 shadow-none rounded-2xl">
+      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
         <CardContent className="p-4">
           <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:opacity-70 transition-opacity">
             <User size={15} />
