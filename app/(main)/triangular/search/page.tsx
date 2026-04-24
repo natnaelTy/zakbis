@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Plane, ChevronRight, ArrowLeft, SlidersHorizontal, Star, CalendarIcon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { Search, Plane, ChevronRight, ArrowLeft, SlidersHorizontal, Star, CalendarIcon, Loader2 } from "lucide-react"
 import Link from "next/link";
 import { format, parseISO, startOfToday } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -27,21 +28,37 @@ const CITIES = [
 const ANY_CITY = "__any__";
 
 export default function TravelerSearchPage() {
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("Addis Ababa");
+  const searchParams = useSearchParams();
+  const initialFrom = searchParams.get("from") ?? "";
+  const initialTo = searchParams.get("to") ?? "Addis Ababa";
+
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
   const [date, setDate] = useState("");
   const [searched, setSearched] = useState(false);
   const [results, setResults] = useState<TripSearchItem[]>([]);
   const [searchTrips, { isFetching: loading }] = useLazySearchTripsQuery();
+  const autoSearched = useRef(false);
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
+  /* Auto-search when arriving from hero with pre-filled params */
+  useEffect(() => {
+    if (autoSearched.current) return;
+    const paramFrom = searchParams.get("from");
+    const paramTo = searchParams.get("to");
+    if (paramFrom || paramTo) {
+      autoSearched.current = true;
+      doSearch(paramFrom ?? "", paramTo ?? "Addis Ababa", "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function doSearch(f: string, t: string, d: string) {
     setSearched(true);
     try {
       const trips = await searchTrips({
-        from: from && from !== ANY_CITY ? from : undefined,
-        to: to && to !== ANY_CITY ? to : undefined,
-        date: date || undefined,
+        from: f && f !== ANY_CITY ? f : undefined,
+        to: t && t !== ANY_CITY ? t : undefined,
+        date: d || undefined,
       }).unwrap();
       setResults(trips);
     } catch {
@@ -49,10 +66,15 @@ export default function TravelerSearchPage() {
     }
   }
 
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    doSearch(from, to, date);
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
         <Link href="/dashboard" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
           <ArrowLeft size={18} className="text-black" />
         </Link>
@@ -62,7 +84,7 @@ export default function TravelerSearchPage() {
         </button>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-6">
         {/* Search form */}
         <form onSubmit={handleSearch} className="space-y-3 mb-6">
           <div className="space-y-1.5">
@@ -138,7 +160,7 @@ export default function TravelerSearchPage() {
                     row: "flex w-full mt-1",
                     cell: "h-9 w-9 p-0 text-center",
                     day: "h-9 w-9 rounded-full p-0 text-sm font-normal aria-selected:opacity-100 hover:bg-slate-100 hover:text-slate-900",
-                    day_selected: "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white",
+                    day_selected: "bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-black hover:text-white focus:bg-black focus:text-white",
                     day_today: "bg-slate-100 text-black",
                     day_outside: "text-slate-300 opacity-50 aria-selected:text-slate-300 aria-selected:opacity-40",
                     day_disabled: "text-slate-300 opacity-50",
@@ -153,7 +175,7 @@ export default function TravelerSearchPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 bg-black text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-black/80 transition-colors disabled:opacity-50"
+            className="w-full h-12 bg-brand-green text-white shadow-sm ring-1 ring-black/5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-brand-greenLight transition-colors transition-colors disabled:opacity-50"
           >
             <Search size={16} />
             {loading ? "Searching…" : "Search Travelers"}
@@ -186,7 +208,7 @@ export default function TravelerSearchPage() {
                     className="flex items-center gap-4 p-4 rounded-2xl border border-black/5 bg-white hover:border-black/20 transition-colors"
                   >
                     {/* Avatar placeholder */}
-                    <div className="w-11 h-11 bg-black rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-11 h-11 bg-brand-green rounded-full shadow-sm text-white flex items-center justify-center shrink-0">
                       <span className="text-white font-bold text-sm">
                         {trip.profiles?.full_name?.[0] ?? "?"}
                       </span>
@@ -198,7 +220,7 @@ export default function TravelerSearchPage() {
                           {trip.profiles?.full_name ?? "Traveler"}
                         </span>
                         {trip.profiles?.verified && (
-                          <span className="text-[10px] font-bold bg-black text-white px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold bg-brand-green text-white shadow-sm ring-1 ring-black/5 px-1.5 py-0.5 rounded-full">
                             ✓
                           </span>
                         )}
