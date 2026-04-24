@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -48,12 +49,12 @@ export default function TravelerDetailPage() {
 
     const weightNumber = Number(weight);
     if (!itemDescription.trim()) {
-      setError("Please add an item description.");
+      setError("Please add an item description."); toast.error("Please add an item description.");
       return;
     }
 
     if (!weightNumber || weightNumber <= 0) {
-      setError("Please enter a valid package weight.");
+      setError("Please enter a valid package weight."); toast.error("Please enter a valid package weight.");
       return;
     }
 
@@ -71,7 +72,7 @@ export default function TravelerDetailPage() {
       setWeight("1");
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Could not create request.";
-      setError(message);
+      setError(message); toast.error(message);
     }
   }
 
@@ -89,13 +90,13 @@ export default function TravelerDetailPage() {
   if (!tripData) {
     return (
       <div className="min-h-screen bg-white">
-        <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+        <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
           <Link href="/triangular/search" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
             <ArrowLeft size={18} className="text-black" />
           </Link>
           <h1 className="text-base font-bold text-black">Traveler Detail</h1>
         </header>
-        <main className="max-w-lg mx-auto px-4 py-8">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-8">
           <Card className="border border-black/10 rounded-2xl shadow-none">
             <CardContent className="p-6 text-center">
               <p className="text-sm font-medium text-black">Trip not found</p>
@@ -112,14 +113,14 @@ export default function TravelerDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur-xl border-b border-black/5 px-4 h-14 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
         <Link href="/triangular/search" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
           <ArrowLeft size={18} className="text-black" />
         </Link>
         <h1 className="text-base font-bold text-black flex-1">Traveler Detail</h1>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-4">
         <TripDetail trip={tripData} />
 
         {tripData.notes && (
@@ -199,7 +200,7 @@ export default function TravelerDetailPage() {
                 </div>
               )}
 
-              <Button type="submit" disabled={submitting} className="w-full h-11 rounded-xl bg-black text-white hover:bg-black/80">
+              <Button type="submit" disabled={submitting} className="w-full h-11 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors">
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : "Send Request"}
               </Button>
             </form>
