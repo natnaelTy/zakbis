@@ -81,7 +81,7 @@ export function SiteHeader() {
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
               >
-                <span className="w-7 h-7 rounded-full bg-black text-white text-xs font-semibold flex items-center justify-center">
+                <span className="w-7 h-7 rounded-full bg-brand-green text-white shadow-sm ring-1 ring-black/5 text-xs font-semibold flex items-center justify-center">
                   {initials}
                 </span>
                 <span className="max-w-32 truncate font-medium">{fullName}</span>
@@ -132,7 +132,7 @@ export function SiteHeader() {
               <Link href="/auth/login" className="text-sm font-medium text-black hover:text-slate-600 transition-colors">
                 Log in
               </Link>
-              <Link href="/auth/signup" className="text-sm font-semibold bg-black text-white px-5 py-2.5 rounded-xl hover:bg-black/80 transition-colors">
+              <Link href="/auth/signup" className="text-sm font-semibold bg-brand-green text-white shadow-sm ring-1 ring-black/5 px-5 py-2.5 rounded-xl hover:bg-brand-greenLight transition-colors transition-colors">
                 Get Started
               </Link>
             </>
@@ -187,7 +187,7 @@ export function SiteHeader() {
                 <Link href="/auth/login" className="text-sm font-medium text-black text-left" onClick={() => setMobileOpen(false)}>
                   Log in
                 </Link>
-                <Link href="/auth/signup" className="text-sm font-semibold bg-black text-white px-5 py-3 rounded-xl text-center" onClick={() => setMobileOpen(false)}>
+                <Link href="/auth/signup" className="text-sm font-semibold bg-brand-green text-white shadow-sm ring-1 ring-black/5 px-5 py-3 rounded-xl text-center" onClick={() => setMobileOpen(false)}>
                   Get Started
                 </Link>
               </>
