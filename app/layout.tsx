@@ -4,12 +4,14 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: "Zakbis Logistics",
   description: "P2P logistics platform",
 };
+
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,
@@ -18,6 +20,7 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
