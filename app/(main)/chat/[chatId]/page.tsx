@@ -123,7 +123,7 @@ export default function ChatDetailPage({
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-4">
         {/* Status Header */}
-        <Card className="border border-black/5 p-4">
+        <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             {chatDetails.chatType === "GROUP" ? (
               <div className="w-10 h-10 bg-gradient-to-r from-brand-green to-brand-greenLight rounded-xl flex items-center justify-center text-white shadow-sm">
