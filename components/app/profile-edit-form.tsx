@@ -69,7 +69,7 @@ export function ProfileEditForm({ initialName, initialPhone, onSaved }: ProfileE
   }
 
   return (
-    <Card className="border border-black/5 shadow-none rounded-2xl">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           Edit Profile
