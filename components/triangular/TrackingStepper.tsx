@@ -50,7 +50,7 @@ export function TrackingStepper({
   const currentIndex = steps.findIndex((s) => s.id === status);
 
   return (
-    <Card className={`border border-black/5 p-6 ${className}`}>
+    <Card className={`p-6 ${className}`}>
       <div className="space-y-6">
         <div className="flex items-center justify-between relative">
           {/* Progress Line */}
