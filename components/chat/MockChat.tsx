@@ -104,7 +104,7 @@ export function MockChat({
   };
 
   return (
-    <Card className={`border border-black/5 rounded-xl flex flex-col h-[600px] ${className}`}>
+    <Card className={`flex flex-col h-[600px] ${className}`}>
       {/* Header */}
       <div className="p-4 border-b border-black/5 flex items-center justify-between bg-slate-50/50">
         <div>
@@ -240,7 +240,7 @@ export function MockBuyMeChat({
 }) {
   return (
     <div className={`space-y-4 ${className}`}>
-      <Card className="border border-black/5 p-4">
+      <Card className="p-4">
         <h4 className="text-sm font-bold text-black mb-2">Buy Me Status</h4>
         <p className="text-xs text-slate-500 mb-4">
           Status: <span className="font-semibold text-black">Open</span> - Waiting for a traveler to accept
@@ -265,7 +265,7 @@ export function MockBuyMeChat({
         </div>
       </Card>
       
-      <Card className="border border-black/5 p-4">
+      <Card className="p-4">
         <h4 className="text-sm font-bold text-black mb-2">Item Details</h4>
         <div className="bg-slate-50 rounded-lg p-3 mb-3">
           <div className="text-sm font-semibold text-black">
