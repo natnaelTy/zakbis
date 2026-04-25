@@ -84,7 +84,7 @@ export function ChatRoom({
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
- 
+
     const response = await fetch(`/api/chats/${chatId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -110,13 +110,13 @@ export function ChatRoom({
     if (fileInputRef.current && fileInputRef.current.files && fileInputRef.current.files[0]) {
       setUploading(true);
       const file = fileInputRef.current.files[0];
-      
+
       console.log("File to upload:", file.name);
-      
+
       if (buyMeRequestId && deliveryType === "buy_me") {
         // TODO: Upload receipt to storage
       }
-      
+
       setUploading(false);
       fileInputRef.current.value = "";
     }
@@ -131,8 +131,8 @@ export function ChatRoom({
             {deliveryType === "triangular" ? "Delivery Group" : "Shopping Chat"}
           </h3>
           <p className="text-[10px] text-slate-500">
-            {deliveryType === "triangular" 
-              ? "Sender • Traveler • Receiver" 
+            {deliveryType === "triangular"
+              ? "Sender • Traveler • Receiver"
               : "Traveler • Receiver"}
           </p>
         </div>
@@ -243,8 +243,8 @@ export function ChatRoom({
           </Button>
         </div>
         <p className="text-[10px] text-slate-400 mt-1 text-center">
-          {deliveryType === "buy_me" 
-            ? "Send files directly to traveler" 
+          {deliveryType === "buy_me"
+            ? "Send files directly to traveler"
             : "Group chat for all participants"}
         </p>
       </div>
@@ -253,12 +253,12 @@ export function ChatRoom({
 }
 
 // Buy Me Chat Component with receipt upload feature
-export function BuyMeChat({ 
-  buyMeRequestId, 
-  className 
-}: { 
-  buyMeRequestId: string; 
-  className?: string; 
+export function BuyMeChat({
+  buyMeRequestId,
+  className
+}: {
+  buyMeRequestId: string;
+  className?: string;
 }) {
   const [status, setStatus] = useState<"open" | "accepted" | "purchased" | "delivered">("open");
 
@@ -273,13 +273,13 @@ export function BuyMeChat({
         <p className="text-xs text-slate-500 mb-3">
           Once you've purchased the item, upload the receipt to move to "Purchased" status.
         </p>
-        <Button 
+        <Button
           onClick={handleMarkAsPurchased}
           disabled={status === "purchased" || status === "delivered"}
           className="w-full"
         >
-          {status === "purchased" 
-            ? "Receipt Uploaded" 
+          {status === "purchased"
+            ? "Receipt Uploaded"
             : status === "delivered"
               ? "Delivered"
               : "Upload Receipt"}
