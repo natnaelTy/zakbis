@@ -16,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
  */
 export default function TripDetail({ trip }: { trip: any }) {
   return (
-    <Card className="rounded-2xl border-black/5 bg-white shadow-none">
+    <Card>
       <CardContent className="p-4">
       <div className="flex items-center gap-4">
         {/* Avatar placeholder */}
