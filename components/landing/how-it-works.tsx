@@ -63,7 +63,7 @@ export function HowItWorksSection() {
             </div>
           </div>
           
-          <Card className="rounded-[2rem] border-black/5 bg-white shadow-xl shadow-black/[0.02]">
+          <Card>
             <CardContent className="p-8 md:p-10">
               <div className="mb-8">
                 <span className="bg-slate-200 text-black text-xs font-bold uppercase tracking-wider px-3 py-1 rounded inline-block">For Travelers</span>
