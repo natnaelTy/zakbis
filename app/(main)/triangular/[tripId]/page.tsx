@@ -97,7 +97,7 @@ export default function TravelerDetailPage() {
           <h1 className="text-base font-bold text-black">Traveler Detail</h1>
         </header>
         <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-8">
-          <Card className="border border-black/10 rounded-2xl shadow-none">
+          <Card>
             <CardContent className="p-6 text-center">
               <p className="text-sm font-medium text-black">Trip not found</p>
               <p className="text-xs text-slate-500 mt-1">It may be closed or unavailable.</p>
@@ -124,7 +124,7 @@ export default function TravelerDetailPage() {
         <TripDetail trip={tripData} />
 
         {tripData.notes && (
-          <Card className="rounded-2xl border-black/5 bg-white shadow-none">
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Trip Notes</CardTitle>
             </CardHeader>
