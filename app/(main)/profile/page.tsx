@@ -109,7 +109,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-6 space-y-4">
-      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
+      <Card className="shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl">
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -188,7 +188,7 @@ export default async function ProfilePage() {
         initialPhone={profile.phone}
       />
 
-      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Overview</CardTitle>
         </CardHeader>
@@ -228,7 +228,7 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Quick actions</CardTitle>
         </CardHeader>
@@ -257,7 +257,7 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
+      <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Recent activity</CardTitle>
         </CardHeader>
@@ -292,7 +292,7 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
-      <Card className="border border-black/5 shadow-sm bg-slate-50 hover:shadow-md transition-all duration-300 rounded-2xl">
+      <Card>
         <CardContent className="p-4">
           <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:opacity-70 transition-opacity">
             <User size={15} />
