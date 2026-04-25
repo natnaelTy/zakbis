@@ -39,7 +39,7 @@ export default function InviteDeliveryPage({ params }: { params: Promise<{ reque
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
-      <Card className="w-full max-w-sm border-black/5 shadow-lg rounded-2xl">
+      <Card className="w-full max-w-sm">
         <CardContent className="p-6 text-center space-y-4">
           <div className="w-16 h-16 bg-brand-green/10 rounded-full flex items-center justify-center mx-auto mb-2 text-brand-green">
             {success ? <CheckCircle2 size={32} /> : <Package size={32} />}
