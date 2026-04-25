@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  Package, 
-  ShoppingBag, 
-  Plane, 
+import {
+  Package,
+  ShoppingBag,
+  Plane,
   ChevronRight,
   Search,
   Plus,
@@ -105,9 +105,8 @@ export default function ChatPage() {
           </div>
           <button
             onClick={() => setSearchQuery("")}
-            className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${
-              searchQuery ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" : "bg-slate-100 text-slate-400"
-            }`}
+            className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${searchQuery ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" : "bg-slate-100 text-slate-400"
+              }`}
           >
             {searchQuery ? <X size={16} /> : <Search size={16} />}
           </button>
@@ -119,8 +118,8 @@ export default function ChatPage() {
             onClick={() => setFilter("all")}
             className={`
               px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
-              ${filter === "all" 
-                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" 
+              ${filter === "all"
+                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }
             `}
@@ -131,8 +130,8 @@ export default function ChatPage() {
             onClick={() => setFilter("triangular")}
             className={`
               px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
-              ${filter === "triangular" 
-                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" 
+              ${filter === "triangular"
+                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }
             `}
@@ -143,8 +142,8 @@ export default function ChatPage() {
             onClick={() => setFilter("buy_me")}
             className={`
               px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
-              ${filter === "buy_me" 
-                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" 
+              ${filter === "buy_me"
+                ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }
             `}
@@ -179,15 +178,15 @@ export default function ChatPage() {
                 {filter === "all"
                   ? "No chats yet"
                   : filter === "triangular"
-                  ? "No triangular delivery chats"
-                  : "No buy me chats"}
+                    ? "No triangular delivery chats"
+                    : "No buy me chats"}
               </p>
               <p className="text-xs text-slate-400 mt-1">
                 {filter === "all"
                   ? "Start a conversation by creating a delivery request"
                   : filter === "triangular"
-                  ? "Find a traveler to start a delivery chat"
-                  : "Post a buy me request to start shopping"}
+                    ? "Find a traveler to start a delivery chat"
+                    : "Post a buy me request to start shopping"}
               </p>
             </div>
           ) : (
@@ -217,9 +216,9 @@ export default function ChatPage() {
                     <span className="text-[10px] text-slate-400 whitespace-nowrap">
                       {chat.lastMessageTime
                         ? new Date(chat.lastMessageTime).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
                         : ""}
                     </span>
                   </div>
