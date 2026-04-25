@@ -264,7 +264,7 @@ export default function BuyMePage() {
 
             {profile?.role === "RECEIVER" && (
               <>
-                <Card className="border border-black/5 rounded-2xl shadow-none">
+                <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Plus size={16} /> Post a Buy Me Request
@@ -335,7 +335,7 @@ export default function BuyMePage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border border-black/5 rounded-2xl shadow-none">
+                <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">My Requests</CardTitle>
                   </CardHeader>
@@ -371,7 +371,7 @@ export default function BuyMePage() {
 
             {profile?.role === "TRAVELER" && (
               <>
-                <Card className="border border-black/5 rounded-2xl shadow-none">
+                <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Open Shopping Requests</CardTitle>
                   </CardHeader>
@@ -415,7 +415,7 @@ export default function BuyMePage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border border-black/5 rounded-2xl shadow-none">
+                <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">My Shopping Jobs</CardTitle>
                   </CardHeader>
@@ -491,7 +491,7 @@ export default function BuyMePage() {
             )}
 
             {profile?.role === "SENDER" && (
-              <Card className="border border-black/5 rounded-2xl shadow-none">
+              <Card>
                 <CardContent className="p-5 text-center">
                   <ShoppingBag size={28} className="text-slate-300 mx-auto mb-3" />
                   <p className="text-sm font-medium text-slate-600">Buy Me is available for Receivers and Travelers.</p>
