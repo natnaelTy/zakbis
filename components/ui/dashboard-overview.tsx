@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from "@/lib/utils"; // Assumes shadcn's utility for class merging
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowDown, ArrowUp, Minus, Users, DollarSign, Clock,AlertCircle } from 'lucide-react';
+import { ArrowDown, ArrowUp, Minus, Users, DollarSign, Clock, AlertCircle } from 'lucide-react';
 
 // Define the icon type. Using React.ElementType for flexibility.
 type IconType = React.ElementType | React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
@@ -44,8 +44,8 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
     trendType === 'up'
       ? "text-green-600 dark:text-green-400"
       : trendType === 'down'
-      ? "text-red-600 dark:text-red-400"
-      : "text-muted-foreground";
+        ? "text-red-600 dark:text-red-400"
+        : "text-muted-foreground";
 
   return (
     <motion.div
@@ -56,7 +56,7 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
         className
       )}
     >
-      <Card className="h-full transition-colors duration-200">
+      <Card className="h-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {title}
@@ -83,7 +83,7 @@ const DashboardMetricCard: React.FC<DashboardMetricCardProps> = ({
 
 const ExampleUsage = () => {
   return (
-    <Card className="max-w-7xl mx-auto shadow-md">
+    <Card className="max-w-7xl mx-auto">
       <CardContent className="p-8">
         <h3 className="text-xl font-semibold text-foreground mb-6">Dashboard Overview</h3>
 
