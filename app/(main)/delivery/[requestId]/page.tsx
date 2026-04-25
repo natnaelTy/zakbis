@@ -212,7 +212,7 @@ export default function DeliveryDetailPage({
 
             {/* Traveler action button */}
             {delivery.is_traveler && actionConfig && (
-              <Card className="border border-black/5 rounded-2xl shadow-none">
+              <Card>
                 <CardContent className="p-4 space-y-3">
                   <div>
                     <h3 className="text-sm font-bold text-black">{actionConfig.label}</h3>
@@ -307,7 +307,7 @@ export default function DeliveryDetailPage({
 
             {/* Flight info */}
             {delivery.trip && (
-              <Card className="border border-black/5 rounded-2xl shadow-none">
+              <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Plane size={16} />
@@ -401,7 +401,7 @@ export default function DeliveryDetailPage({
 
             {/* Cancel button for PENDING requests */}
             {canCancel && (
-              <Card className="border border-red-100 rounded-2xl shadow-none">
+              <Card className="border border-red-100">
                 <CardContent className="p-4 space-y-3">
                   <div>
                     <h3 className="text-sm font-bold text-red-600">Cancel Request</h3>
