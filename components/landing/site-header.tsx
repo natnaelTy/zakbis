@@ -6,6 +6,8 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { clearAuth } from "@/lib/redux/features/auth/authSlice";
+import Image from "next/image";
+
 
 export function SiteHeader() {
   const router = useRouter();
@@ -47,14 +49,11 @@ export function SiteHeader() {
     .join("") || "U";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/5">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-100">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">Z</span>
-          </div>
-          <span className="text-lg font-bold tracking-tight text-black">Zakbis</span>
+           <Image src="/zakbislogo.png" alt="Zakbis Logo" width={65} height={65} objectFit="cover" className="p-2"  />
         </Link>
 
         {/* Desktop Nav */}
@@ -77,19 +76,19 @@ export function SiteHeader() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((prev) => !prev)}
-                className="flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black hover:bg-slate-50 transition-colors"
+                className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-black hover:bg-slate-50 transition-colors shadow-sm"
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
               >
-                <span className="w-7 h-7 rounded-full bg-brand-green text-white shadow-sm ring-1 ring-black/5 text-xs font-semibold flex items-center justify-center">
+                <span className="w-7 h-7 rounded-full bg-emerald-700 text-white shadow-sm ring-1 ring-black/5 text-xs font-semibold flex items-center justify-center">
                   {initials}
                 </span>
                 <span className="max-w-32 truncate font-medium">{fullName}</span>
-                <ChevronDown size={16} className={`transition-transform ${menuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-black/10 bg-white shadow-lg p-2 z-50">
+                <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-slate-200 bg-white shadow-xl p-2 z-50">
                   <div className="px-3 py-2 border-b border-black/5 mb-1">
                     <p className="text-sm font-semibold text-black truncate">{fullName}</p>
                     {role && <p className="text-xs text-slate-500">{role}</p>}
@@ -132,7 +131,7 @@ export function SiteHeader() {
               <Link href="/auth/login" className="text-sm font-medium text-black hover:text-slate-600 transition-colors">
                 Log in
               </Link>
-              <Link href="/auth/signup" className="text-sm font-semibold bg-brand-green text-white shadow-sm ring-1 ring-black/5 px-5 py-2.5 rounded-xl hover:bg-brand-greenLight transition-colors transition-colors">
+              <Link href="/auth/signup" className="text-sm font-semibold bg-emerald-700 text-white shadow-md px-6 py-3 rounded-2xl hover:bg-emerald-800 transition-colors">
                 Get Started
               </Link>
             </>
@@ -187,7 +186,7 @@ export function SiteHeader() {
                 <Link href="/auth/login" className="text-sm font-medium text-black text-left" onClick={() => setMobileOpen(false)}>
                   Log in
                 </Link>
-                <Link href="/auth/signup" className="text-sm font-semibold bg-brand-green text-white shadow-sm ring-1 ring-black/5 px-5 py-3 rounded-xl text-center" onClick={() => setMobileOpen(false)}>
+                <Link href="/auth/signup" className="text-sm font-semibold bg-emerald-700 text-white shadow-md px-6 py-3 rounded-2xl text-center" onClick={() => setMobileOpen(false)}>
                   Get Started
                 </Link>
               </>

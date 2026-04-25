@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { Mail, Globe, Send } from "lucide-react";
+import Image from "next/image";
+
 
 export function SiteFooter() {
   return (
     <footer className="bg-black text-white py-16 md:py-24 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8 mb-16">
-          
+
           <div className="md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4 group">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-black font-bold text-sm">Z</span>
-              </div>
-              <span className="text-lg font-bold text-white">Zakbis</span>
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2 group">
+              <Image src="/zakbislogo.png" alt="Zakbis Logo" width={68} height={68} objectFit="cover" />
             </Link>
             <p className="text-sm text-slate-400">
               The peer-to-peer delivery network.
@@ -45,7 +45,7 @@ export function SiteFooter() {
               <li><a href="#" className="text-sm text-slate-400 hover:text-white transition-colors">Status</a></li>
             </ul>
           </div>
-          
+
         </div>
 
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
