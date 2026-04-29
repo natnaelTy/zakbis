@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
 
   // Map route prefixes to allowed roles
   const roleAccess: Record<string, string[]> = {
-    '/buy-me': ['TRAVELER', 'RECEIVER'],
+    '/buy-me': ['SENDER', 'TRAVELER', 'RECEIVER'],
     '/triangular': ['SENDER', 'RECEIVER'],
     '/delivery': ['SENDER', 'TRAVELER', 'RECEIVER'],
     '/traveler': ['TRAVELER'],
