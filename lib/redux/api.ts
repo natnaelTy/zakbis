@@ -82,6 +82,7 @@ export type OwnerDeliveryRequestItem = {
     departure_city: string;
     destination_city: string;
     departure_date: string;
+    price_per_kg: number;
     traveler: {
       full_name: string;
     } | null;
@@ -137,11 +138,26 @@ export type DeliveryRequestDetail = {
   } | null;
 };
 
+export type DashboardStats = {
+  total: number;
+  pending: number;
+  active: number;
+  delivered: number;
+  cancelled: number;
+  projected: number;
+  earned: number;
+};
+
 export const zakbisApi = createApi({
   reducerPath: "zakbisApi",
   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
-  tagTypes: ["Trips", "TripDetail", "DeliveryRequest", "DeliveryRequestDetail"],
+  tagTypes: ["Trips", "TripDetail", "DeliveryRequest", "DeliveryRequestDetail", "DashboardStats"],
   endpoints: (builder) => ({
+    getDashboardStats: builder.query<DashboardStats, void>({
+      query: () => "dashboard/stats",
+      transformResponse: (response: { data: DashboardStats }) => response.data,
+      providesTags: [{ type: "DashboardStats", id: "CURRENT" }],
+    }),
     getMyTrips: builder.query<any[], void>({
       query: () => "trips/me",
       transformResponse: (response: { data: any[] }) => response.data,
@@ -202,7 +218,12 @@ export const zakbisApi = createApi({
         body,
       }),
       transformResponse: (response: { data: { id: string } }) => response.data,
-      invalidatesTags: [{ type: "Trips", id: "LIST" }],
+      invalidatesTags: (_result, _error, args) => [
+        { type: "Trips", id: "LIST" },
+        { type: "TripDetail", id: args.tripId },
+        { type: "DeliveryRequest", id: "LIST" },
+        { type: "DashboardStats", id: "CURRENT" },
+      ],
     }),
     getTravelerDeliveryRequests: builder.query<TravelerDeliveryRequestItem[], void>({
       query: () => "delivery-requests?scope=traveler",
@@ -236,6 +257,8 @@ export const zakbisApi = createApi({
       invalidatesTags: (_result, _error, args) => [
         { type: "DeliveryRequest", id: args.requestId },
         { type: "DeliveryRequest", id: "LIST" },
+        { type: "Trips", id: "LIST" },
+        { type: "DashboardStats", id: "CURRENT" },
       ],
     }),
     ensureDeliveryChat: builder.mutation<{ chat_id: string }, { requestId: string }>({
@@ -248,6 +271,7 @@ export const zakbisApi = createApi({
       invalidatesTags: (_result, _error, args) => [
         { type: "DeliveryRequest", id: args.requestId },
         { type: "DeliveryRequest", id: "LIST" },
+        { type: "DashboardStats", id: "CURRENT" },
       ],
     }),
     // New: Get single delivery request detail
@@ -269,6 +293,7 @@ export const zakbisApi = createApi({
         { type: "DeliveryRequestDetail", id: requestId },
         { type: "DeliveryRequest", id: requestId },
         { type: "DeliveryRequest", id: "LIST" },
+        { type: "DashboardStats", id: "CURRENT" },
       ],
     }),
     // Cancel a PENDING delivery request
@@ -282,6 +307,7 @@ export const zakbisApi = createApi({
         { type: "DeliveryRequestDetail", id: requestId },
         { type: "DeliveryRequest", id: requestId },
         { type: "DeliveryRequest", id: "LIST" },
+        { type: "DashboardStats", id: "CURRENT" },
       ],
     }),
   }),
@@ -290,6 +316,7 @@ export const zakbisApi = createApi({
 export const {
   useSearchTripsQuery,
   useLazySearchTripsQuery,
+  useGetDashboardStatsQuery,
   useGetTripByIdQuery,
   useCreateDeliveryRequestMutation,
   useGetTravelerDeliveryRequestsQuery,
@@ -304,4 +331,3 @@ export const {
   useSearchBuyMeQuery,
   useLazySearchBuyMeQuery,
 } = zakbisApi;
-
