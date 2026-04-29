@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plane, DollarSign, Package, Plus, Loader2, CheckCircle2, AlertCircle, TrendingUp } from "lucide-react";
+import { Plane, DollarSign, Package, Loader2, CheckCircle2, AlertCircle, TrendingUp } from "lucide-react";
 import { DashboardMetricCard } from "@/components/ui/dashboard-overview";
 import { Button } from "@/components/ui/button";
 import {
   useAcceptDeliveryRequestMutation,
   useEnsureDeliveryChatMutation,
+  useCancelDeliveryRequestMutation,
+  useGetDashboardStatsQuery,
   useGetTravelerDeliveryRequestsQuery,
 } from "@/lib/redux/api";
 
@@ -23,20 +25,36 @@ interface TravelerDashboardProps {
   profile: Profile;
 }
 
-const mockEarnings = {
-  total: 1240,
-  thisMonth: 320,
-  deliveries: 14,
-};
-
 export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps) {
   const router = useRouter();
   const { data: requests = [], isLoading, isFetching } = useGetTravelerDeliveryRequestsQuery();
+  const { data: stats } = useGetDashboardStatsQuery();
   const [acceptDeliveryRequest, { isLoading: accepting }] = useAcceptDeliveryRequestMutation();
   const [ensureDeliveryChat, { isLoading: ensuringChat }] = useEnsureDeliveryChatMutation();
+  const [cancelDeliveryRequest, { isLoading: cancelling }] = useCancelDeliveryRequestMutation();
 
   const pendingCount = requests.filter((request) => request.status === "PENDING").length;
-  const actionableRequests = requests.filter((request) => ["PENDING", "MATCHED"].includes(request.status));
+  const activeRequests = requests.filter((request) =>
+    ["MATCHED", "PICKED_UP", "IN_TRANSIT", "ARRIVED"].includes(request.status),
+  );
+  const completedRequests = requests.filter((request) => request.status === "DELIVERED");
+  const actionableRequests = requests.filter((request) =>
+    ["PENDING", "MATCHED", "PICKED_UP", "IN_TRANSIT", "ARRIVED"].includes(request.status),
+  );
+  const dashboardStats = stats ?? {
+    total: requests.length,
+    pending: pendingCount,
+    active: activeRequests.length,
+    delivered: completedRequests.length,
+    cancelled: requests.filter((request) => request.status === "CANCELLED").length,
+    projected: requests
+      .filter((request) => request.status !== "CANCELLED")
+      .reduce((sum, request) => sum + request.weight * request.trip.price_per_kg, 0),
+    earned: completedRequests.reduce(
+      (sum, request) => sum + request.weight * request.trip.price_per_kg,
+      0,
+    ),
+  };
 
   async function handleAccept(requestId: string) {
     try {
@@ -62,30 +80,38 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
     }
   }
 
+  async function handleReject(requestId: string) {
+    try {
+      await cancelDeliveryRequest(requestId).unwrap();
+    } catch {
+      // ignore errors; UI will refresh via invalidation
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Earnings summary - Using DashboardMetricCard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DashboardMetricCard
-          title="Total Earned"
-          value={`$${mockEarnings.total.toLocaleString()}`}
+          title="Earned"
+          value={`$${dashboardStats.earned.toFixed(2)}`}
           icon={DollarSign}
-          trendChange="+12%"
-          trendType="up"
+          trendChange={`${dashboardStats.delivered} delivered`}
+          trendType="neutral"
         />
         <DashboardMetricCard
-          title="This Month"
-          value={`$${mockEarnings.thisMonth}`}
+          title="Projected"
+          value={`$${dashboardStats.projected.toFixed(2)}`}
           icon={TrendingUp}
-          trendChange="+8.5%"
-          trendType="up"
+          trendChange={`${dashboardStats.active} active`}
+          trendType={dashboardStats.active > 0 ? "up" : "neutral"}
         />
         <DashboardMetricCard
-          title="Deliveries"
-          value={mockEarnings.deliveries.toString()}
+          title="Requests"
+          value={String(dashboardStats.total)}
           icon={Package}
-          trendChange="+3"
-          trendType="up"
+          trendChange={`${dashboardStats.pending} pending`}
+          trendType={dashboardStats.pending > 0 ? "up" : "neutral"}
         />
       </div>
 
@@ -117,11 +143,13 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
         </Link>
       </div>
 
-      {/* Available requests */}
+      {/* Delivery work */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-black">Available Requests</h2>
-          <span className="text-xs font-medium text-slate-500">{pendingCount} pending</span>
+          <h2 className="text-base font-bold text-black">Delivery Work</h2>
+          <span className="text-xs font-medium text-slate-500">
+            {pendingCount} pending · {activeRequests.length} active
+          </span>
         </div>
 
         <div className="space-y-3">
@@ -133,7 +161,7 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
           ) : actionableRequests.length === 0 ? (
             <div className="rounded-2xl border border-black/5 p-4 bg-white text-sm text-slate-500 flex items-center gap-2">
               <AlertCircle size={14} />
-              No pending requests for your trips yet.
+              No pending or active requests for your trips yet.
             </div>
           ) : (
             actionableRequests.map((req) => {
@@ -165,7 +193,7 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <span className="text-sm font-bold text-black">${estimatedPay.toFixed(2)}</span>
-                    {req.status === "MATCHED" && req.chat_id ? (
+                  {req.status !== "PENDING" && req.chat_id ? (
                       <Button
                         size="sm"
                         onClick={(e) => { e.stopPropagation(); router.push(`/chat/${req.chat_id}`); }}
@@ -173,7 +201,7 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
                       >
                         Open Chat
                       </Button>
-                    ) : req.status === "MATCHED" ? (
+                    ) : req.status !== "PENDING" ? (
                       <Button
                         size="sm"
                         onClick={(e) => { e.stopPropagation(); handleCreateChat(req.id); }}
@@ -183,15 +211,27 @@ export function TravelerDashboard({ profile: _profile }: TravelerDashboardProps)
                         {ensuringChat ? <Loader2 size={14} className="animate-spin" /> : "Create Chat"}
                       </Button>
                     ) : (
-                      <Button
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleAccept(req.id); }}
-                        disabled={accepting || ensuringChat}
-                        className="h-8 rounded-lg bg-black text-white hover:bg-black/80"
-                      >
-                        {accepting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                        Accept
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleAccept(req.id); }}
+                          disabled={accepting || ensuringChat}
+                          className="h-8 rounded-lg bg-black text-white hover:bg-black/80"
+                        >
+                          {accepting && <Loader2 size={14} className="animate-spin" />}
+                          Accept
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => { e.stopPropagation(); handleReject(req.id); }}
+                          disabled={cancelling}
+                          className="h-8 rounded-lg"
+                        >
+                          {cancelling ? <Loader2 size={14} className="animate-spin" /> : "Reject"}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
