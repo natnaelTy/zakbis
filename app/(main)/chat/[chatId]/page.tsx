@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Package, ShoppingBag, Plane, User, MessageSquare } from "lucide-react";
 import { ChatRoom } from "@/components/chat/ChatRoom";
@@ -22,7 +22,7 @@ export default function ChatDetailPage({
 }: { 
   params: Promise<{ chatId: string }> 
 }) {
-  const { chatId } = params as any;
+  const { chatId } = use(params);
   const [chatDetails, setChatDetails] = useState<ChatDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [deliveryStatus, setDeliveryStatus] = useState<string>("");
