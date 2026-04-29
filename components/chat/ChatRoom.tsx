@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { toast } from "sonner";
 import { Loader2, Send, Paperclip, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/client";
+import { useUnread } from "@/components/app/unread-provider";
 
 interface Message {
   id: string;
@@ -27,6 +30,14 @@ interface ChatRoomProps {
   className?: string;
 }
 
+type RealtimeMessageRow = {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+};
+
 export function ChatRoom({
   chatId,
   deliveryRequestId,
@@ -41,10 +52,51 @@ export function ChatRoom({
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentUserRef = useRef<string | null>(null);
+  const { markRead } = useUnread();
 
-  // Load initial messages
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  // Load initial messages once, then receive new messages through Supabase Realtime.
   useEffect(() => {
     let isMounted = true;
+    const supabase = createClient();
+    const senderCache = new Map<string, Message["sender"]>();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function attachSender(row: RealtimeMessageRow): Promise<Message> {
+      let sender = senderCache.get(row.sender_id);
+
+      if (!sender) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("id", row.sender_id)
+          .maybeSingle();
+
+        sender = {
+          full_name: data?.full_name ?? "Unknown",
+          avatar_url: data?.avatar_url ?? null,
+        };
+        senderCache.set(row.sender_id, sender);
+      }
+
+      return { ...row, sender };
+    }
+
+    function appendMessage(message: Message) {
+      setMessages((current) => {
+        if (current.some((item) => item.id === message.id)) {
+          return current;
+        }
+
+        return [...current, message].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+      });
+    }
 
     async function load() {
       const response = await fetch(`/api/chats/${chatId}/messages`, {
@@ -60,19 +112,59 @@ export function ChatRoom({
       }
 
       const payload = await response.json();
-      setMessages((payload?.data as Message[]) ?? []);
+      const initialMessages = (payload?.data as Message[]) ?? [];
+      initialMessages.forEach((message) => {
+        if (message.sender) {
+          senderCache.set(message.sender_id, message.sender);
+        }
+      });
+
+      setMessages(initialMessages);
       setCurrentUser((payload?.currentUserId as string) ?? null);
       setLoading(false);
+      await markRead(chatId);
     }
 
-    load();
-    const interval = window.setInterval(load, 3000);
+    async function initialize() {
+      await load();
+      if (!isMounted) return;
+
+      channel = supabase
+        .channel(`chat-room:${chatId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `chat_id=eq.${chatId}`,
+          },
+          async (payload) => {
+            const message = await attachSender(payload.new as RealtimeMessageRow);
+            if (isMounted) {
+              appendMessage(message);
+              if (message.sender_id !== currentUserRef.current) {
+                await markRead(chatId);
+              }
+            }
+          },
+        )
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.error(`Realtime chat subscription failed: ${status}`);
+          }
+        });
+    }
+
+    initialize();
 
     return () => {
       isMounted = false;
-      window.clearInterval(interval);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [chatId]);
+  }, [chatId, markRead]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -93,14 +185,6 @@ export function ChatRoom({
 
     if (response.ok) {
       setNewMessage("");
-      const refreshed = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "GET",
-        cache: "no-store",
-      });
-      if (refreshed.ok) {
-        const payload = await refreshed.json();
-        setMessages((payload?.data as Message[]) ?? []);
-      }
     } else {
       console.error("Error sending message");
     }
@@ -108,13 +192,31 @@ export function ChatRoom({
 
   const handleFileUpload = async () => {
     if (fileInputRef.current && fileInputRef.current.files && fileInputRef.current.files[0]) {
-      setUploading(true);
       const file = fileInputRef.current.files[0];
-
-      console.log("File to upload:", file.name);
+      setUploading(true);
 
       if (buyMeRequestId && deliveryType === "buy_me") {
-        // TODO: Upload receipt to storage
+        // Upload receipt to Supabase Storage via API
+        const formData = new FormData();
+        formData.append("requestId", buyMeRequestId);
+        formData.append("file", file);
+
+        try {
+          const response = await fetch("/api/buy-me-requests/receipt", {
+            method: "POST",
+            body: formData,
+          });
+
+          const payload = await response.json();
+
+          if (!response.ok) {
+            console.error("Upload failed:", payload?.error);
+          } else {
+            console.log("Receipt uploaded:", payload);
+          }
+        } catch (error) {
+          console.error("Upload error:", error);
+        }
       }
 
       setUploading(false);
@@ -261,9 +363,52 @@ export function BuyMeChat({
   className?: string;
 }) {
   const [status, setStatus] = useState<"open" | "accepted" | "purchased" | "delivered">("open");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const handleMarkAsPurchased = async () => {
-    console.log("Marking request as purchased");
+  const handleMarkAsPurchased = () => {
+    fileRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Basic client-side validation (server also validates)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("File too large. Max 10MB.");
+      e.currentTarget.value = "";
+      return;
+    }
+
+    setUploading(true);
+
+    const formData = new FormData();
+    formData.append("requestId", buyMeRequestId);
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/buy-me-requests/receipt", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await res.json();
+
+      if (!res.ok) {
+        toast.error(payload?.error ?? "Upload failed");
+      } else {
+        toast.success("Receipt uploaded. Request marked purchased.");
+        setStatus("purchased");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+      e.currentTarget.value = "";
+    }
   };
 
   return (
@@ -273,16 +418,19 @@ export function BuyMeChat({
         <p className="text-xs text-slate-500 mb-3">
           Once you've purchased the item, upload the receipt to move to "Purchased" status.
         </p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFileChange}
+        />
         <Button
           onClick={handleMarkAsPurchased}
-          disabled={status === "purchased" || status === "delivered"}
+          disabled={status === "purchased" || status === "delivered" || uploading}
           className="w-full"
         >
-          {status === "purchased"
-            ? "Receipt Uploaded"
-            : status === "delivered"
-              ? "Delivered"
-              : "Upload Receipt"}
+          {uploading ? "Uploading..." : status === "purchased" ? "Receipt Uploaded" : status === "delivered" ? "Delivered" : "Upload Receipt"}
         </Button>
       </div>
     </div>
