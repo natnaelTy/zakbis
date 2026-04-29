@@ -1,7 +1,10 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Home } from "lucide-react";
 import { TravelerDashboard } from "@/components/dashboard/traveler-dashboard";
 import { SenderReceiverDashboard } from "@/components/dashboard/sender-receiver-dashboard";
+import { Button } from "@/components/ui/button";
 
 export default async function DashboardPage() {
   const headerStore = await headers();
@@ -26,12 +29,20 @@ export default async function DashboardPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 pt-8">
-      {/* Greeting */}
-      <div className="mb-6">
-        <p className="text-sm text-slate-500 font-medium">Selam 👋</p>
-        <h1 className="text-2xl font-bold tracking-tight text-black mt-0.5">
-          {profile.full_name.split(" ")[0]}
-        </h1>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-slate-500 font-medium">Selam 👋</p>
+          <h1 className="text-2xl font-bold tracking-tight text-black mt-0.5">
+            {profile.full_name.split(" ")[0]}
+          </h1>
+        </div>
+
+        <Button asChild variant="outline" size="sm" className="shrink-0 rounded-full px-4">
+          <Link href="/" aria-label="Back to home">
+            <Home size={16} className="mr-2" />
+            Back to home
+          </Link>
+        </Button>
       </div>
 
       {/* Role badge */}
