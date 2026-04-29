@@ -23,6 +23,9 @@
       }
     ],
     "paths": {
+      "@supabase/realtime-js/src/*": [
+        "./node_modules/@supabase/realtime-js/dist/module/*"
+      ],
       "@/*": [
         "./*"
       ]
