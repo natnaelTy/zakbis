@@ -97,5 +97,21 @@ export async function PATCH(
     );
   }
 
+  if (nextStatus === "DELIVERED" && (requestRow as any).trip_id) {
+    const { data: activeRequests } = await supabase
+      .from("delivery_requests")
+      .select("id")
+      .eq("trip_id", (requestRow as any).trip_id)
+      .in("status", ["PENDING", "MATCHED", "PICKED_UP", "IN_TRANSIT", "ARRIVED"])
+      .limit(1);
+
+    if ((activeRequests ?? []).length === 0) {
+      await supabase
+        .from("trips")
+        .update({ status: "COMPLETED", updated_at: new Date().toISOString() })
+        .eq("id", (requestRow as any).trip_id);
+    }
+  }
+
   return NextResponse.json({ data: updated });
 }
