@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Package, Search, ChevronRight, Clock, CheckCircle2, Truck, Plus, TrendingUp, Loader2, AlertCircle } from "lucide-react";
 import { DashboardMetricCard } from "@/components/ui/dashboard-overview";
-import { useEnsureDeliveryChatMutation, useGetOwnerDeliveryRequestsQuery } from "@/lib/redux/api";
+import { useEnsureDeliveryChatMutation, useGetDashboardStatsQuery, useGetOwnerDeliveryRequestsQuery } from "@/lib/redux/api";
 import { Button } from "@/components/ui/button";
 
 interface Profile {
@@ -33,10 +33,24 @@ export function SenderReceiverDashboard({ profile }: SenderReceiverDashboardProp
   const router = useRouter();
   const isSender = profile.role === "SENDER";
   const { data: requests = [], isLoading, isFetching } = useGetOwnerDeliveryRequestsQuery();
+  const { data: stats } = useGetDashboardStatsQuery();
   const [ensureDeliveryChat, { isLoading: ensuringChat }] = useEnsureDeliveryChatMutation();
 
   const activeCount = requests.filter((r) => ["PENDING", "MATCHED", "PICKED_UP", "IN_TRANSIT", "ARRIVED"].includes(r.status)).length;
   const deliveredCount = requests.filter((r) => r.status === "DELIVERED").length;
+  const dashboardStats = stats ?? {
+    total: requests.length,
+    pending: requests.filter((r) => r.status === "PENDING").length,
+    active: activeCount,
+    delivered: deliveredCount,
+    cancelled: requests.filter((r) => r.status === "CANCELLED").length,
+    projected: requests
+      .filter((r) => r.status !== "CANCELLED" && r.trip)
+      .reduce((sum, r) => sum + r.weight * (r.trip?.price_per_kg ?? 0), 0),
+    earned: requests
+      .filter((r) => r.status === "DELIVERED" && r.trip)
+      .reduce((sum, r) => sum + r.weight * (r.trip?.price_per_kg ?? 0), 0),
+  };
 
   return (
     <div className="space-y-6">
@@ -44,24 +58,24 @@ export function SenderReceiverDashboard({ profile }: SenderReceiverDashboardProp
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DashboardMetricCard
           title="Active"
-          value={String(activeCount)}
+          value={String(dashboardStats.active + dashboardStats.pending)}
           icon={TrendingUp}
-          trendChange="live"
-          trendType="up"
+          trendChange={`${dashboardStats.pending} pending`}
+          trendType={dashboardStats.active + dashboardStats.pending > 0 ? "up" : "neutral"}
         />
         <DashboardMetricCard
           title="Delivered"
-          value={String(deliveredCount)}
+          value={String(dashboardStats.delivered)}
           icon={CheckCircle2}
           trendChange="all time"
-          trendType="up"
+          trendType={dashboardStats.delivered > 0 ? "up" : "neutral"}
         />
         <DashboardMetricCard
           title="Total Requests"
-          value={String(requests.length)}
+          value={String(dashboardStats.total)}
           icon={Package}
           trendChange={isSender ? "sent" : "received"}
-          trendType="up"
+          trendType={dashboardStats.total > 0 ? "up" : "neutral"}
         />
       </div>
 
