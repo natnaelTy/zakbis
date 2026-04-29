@@ -44,8 +44,39 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-optical-sizing: auto;
+    letter-spacing: 0;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: 0;
+    line-height: 1.12;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  [class*="tracking-"] {
+    letter-spacing: 0;
+  }
+
+  [class*="tabular-nums"],
+  time {
+    font-variant-numeric: tabular-nums;
   }
 }
 
