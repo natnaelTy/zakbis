@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, PackageCheck } from "lucide-react";
 import TripDetail from "@/components/triangular/TripDetail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
 export default function TravelerDetailPage() {
   const params = useParams<{ tripId: string }>();
   const tripId = params.tripId;
+  const router = useRouter();
 
   const { data: trip, isLoading: loading } = useGetTripByIdQuery(tripId ?? "", {
     skip: !tripId,
@@ -67,9 +68,11 @@ export default function TravelerDetailPage() {
         dropoffCity: dropoffCity.trim() || tripData.destination_city,
       }).unwrap();
 
-      setSuccessMessage(`Request created (${result.id.slice(0, 8)}). You can continue in chats.`);
+      setSuccessMessage(`Request created (${result.id.slice(0, 8)}). Opening delivery details...`);
       setItemDescription("");
       setWeight("1");
+      toast.success("Delivery request created");
+      router.push(`/delivery/${result.id}`);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Could not create request.";
       setError(message); toast.error(message);
