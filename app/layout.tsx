@@ -1,23 +1,30 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
-import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
+import { Toaster } from "@/components/ui/sonner";
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
 
 export const metadata: Metadata = {
   title: "Zakbis Logistics",
   description: "P2P logistics platform",
+  icons: {
+    icon: "/zakbislogo.png",
+    apple: "/zakbislogo.png",
+  },
 };
-
-import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={manrope.variable}>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
         <Toaster richColors position="top-right" />
