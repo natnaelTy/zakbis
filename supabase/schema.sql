@@ -205,25 +205,21 @@ create policy "Chat participants can view chats" on chats
 create policy "Participants can create chats" on chats
   for insert with check (
     (
-      delivery_request_id is not null and
-      auth.uid() in (
-        select dr.sender_id from delivery_requests dr where dr.id = delivery_request_id
-        union
-        select dr.receiver_id from delivery_requests dr where dr.id = delivery_request_id
-        union
-        select t.traveler_id
+      delivery_request_id is not null and exists (
+        select 1
         from delivery_requests dr
         join trips t on t.id = dr.trip_id
-        where dr.id = delivery_request_id
+        where dr.id = chats.delivery_request_id
+          and auth.uid() in (dr.sender_id, dr.receiver_id, t.traveler_id)
       )
     )
     or
     (
-      buy_me_request_id is not null and
-      auth.uid() in (
-        select bmr.receiver_id from buy_me_requests bmr where bmr.id = buy_me_request_id
-        union
-        select bmr.traveler_id from buy_me_requests bmr where bmr.id = buy_me_request_id
+      buy_me_request_id is not null and exists (
+        select 1
+        from buy_me_requests bmr
+        where bmr.id = chats.buy_me_request_id
+          and auth.uid() in (bmr.receiver_id, bmr.traveler_id)
       )
     )
   );
