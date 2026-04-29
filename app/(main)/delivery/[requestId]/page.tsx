@@ -135,7 +135,8 @@ export default function DeliveryDetailPage({
   async function handleAdvance() {
     setActionError(null);
     try {
-      await advanceStatus(requestId).unwrap();
+      const result = await advanceStatus(requestId).unwrap();
+      toast.success(`Delivery marked ${result.status.replaceAll("_", " ").toLowerCase()}`);
     } catch (err: any) {
       setActionError(err?.data?.error ?? "Failed to advance status"); toast.error(err?.data?.error ?? "Failed to advance status");
     }
