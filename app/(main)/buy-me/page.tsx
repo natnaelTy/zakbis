@@ -68,9 +68,9 @@ export default function BuyMePage() {
   const [error, setError] = useState<string | null>(null);
 
   // Receipt upload state
-  const [receiptUrl, setReceiptUrl] = useState<Record<string, string>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
+  const [fileInputRef, setFileInputRef] = useState<Record<string, HTMLInputElement | null>>({});
 
   // Receiver form
   const [productName, setProductName] = useState("");
@@ -179,35 +179,40 @@ export default function BuyMePage() {
     await loadData();
   }
 
-  async function uploadReceipt(requestId: string) {
-    const url = receiptUrl[requestId]?.trim();
-    if (!url) {
-      setError("Please enter a receipt URL"); toast.error("Please enter a receipt URL");
+  // File upload handler for receipt
+  const handleFileUpload = async (requestId: string, file: File) => {
+    if (!file) {
+      setError("No file selected");
       return;
     }
 
     setUploadingId(requestId);
     setError(null);
 
-    const response = await fetch("/api/buy-me-requests/receipt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, receiptUrl: url }),
-    });
+    const formData = new FormData();
+    formData.append("requestId", requestId);
+    formData.append("file", file);
 
-    const payload = await response.json();
+    try {
+      const response = await fetch("/api/buy-me-requests/receipt", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!response.ok) {
-      setError(payload?.error ?? "Could not upload receipt."); toast.error(payload?.error ?? "Could not upload receipt.");
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Could not upload receipt");
+      }
+
       setUploadingId(null);
-      return;
+      toast.success("Receipt uploaded. It is now marked as purchased.");
+      await loadData();
+    } catch (err: any) {
+      setError(err.message ?? "Upload failed");
+      setUploadingId(null);
     }
-
-    setUploadingId(null);
-    toast.success("Receipt uploaded. It is now marked as purchased.");
-    setReceiptUrl((prev) => ({ ...prev, [requestId]: "" }));
-    await loadData();
-  }
+  };
 
   async function confirmDelivery(requestId: string) {
     setDeliveringId(requestId);
@@ -406,7 +411,7 @@ export default function BuyMePage() {
                             disabled={acceptingId === r.id}
                             className="w-full mt-3 h-10 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors"
                           >
-                            {acceptingId === r.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                            {acceptingId === r.id && <Loader2 size={15} className="animate-spin" />}
                             {acceptingId === r.id ? "Accepting..." : "Accept Request"}
                           </Button>
                         </div>
@@ -445,21 +450,37 @@ export default function BuyMePage() {
                           {r.status === "ACCEPTED" && (
                             <div className="space-y-2 pt-1">
                               <div className="flex items-center gap-2">
-                                <Input
-                                  placeholder="Paste receipt image URL..."
-                                  value={receiptUrl[r.id] ?? ""}
-                                  onChange={(e) => setReceiptUrl((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                                  className="h-9 rounded-lg text-xs flex-1"
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  className="hidden"
+                                  ref={(el) => {
+                                    if (el) {
+                                      fileInputRef[r.id] = el;
+                                    }
+                                  }}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handleFileUpload(r.id, file);
+                                    }
+                                  }}
                                 />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => fileInputRef[r.id]?.click()}
+                                  disabled={uploadingId === r.id}
+                                  className="h-9 w-full text-xs border-brand-green/20 text-brand-green hover:bg-brand-green/5"
+                                >
+                                  {uploadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                                  {uploadingId === r.id ? "Uploading..." : "Select Receipt Image"}
+                                </Button>
                               </div>
-                              <Button
-                                onClick={() => uploadReceipt(r.id)}
-                                disabled={uploadingId === r.id || !(receiptUrl[r.id]?.trim())}
-                                className="w-full h-9 rounded-lg bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors text-xs"
-                              >
-                                {uploadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                {uploadingId === r.id ? "Uploading..." : "Upload Receipt & Mark Purchased"}
-                              </Button>
+                              <p className="text-[10px] text-slate-400 text-center">
+                                JPEG, PNG, or WebP (max 10MB)
+                              </p>
                             </div>
                           )}
 
