@@ -168,6 +168,7 @@ export async function GET(request: NextRequest) {
             departure_city,
             destination_city,
             departure_date,
+            price_per_kg,
             traveler:profiles!trips_traveler_id_fkey(full_name)
           )
         `,
@@ -213,6 +214,28 @@ export async function POST(request: NextRequest) {
 
   if (profile.role !== "SENDER" && profile.role !== "RECEIVER") {
     return NextResponse.json({ error: "Only sender/receiver can create request" }, { status: 403 });
+  }
+
+  const { data: trip, error: tripError } = await supabase
+    .from("trips")
+    .select("id, traveler_id, trip_type, status, available_weight, departure_city, destination_city")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (tripError || !trip) {
+    return NextResponse.json({ error: "Trip not found" }, { status: 404 });
+  }
+
+  if (trip.trip_type !== "TRIANGULAR" || trip.status !== "OPEN") {
+    return NextResponse.json({ error: "This trip is not accepting delivery requests" }, { status: 400 });
+  }
+
+  if (trip.traveler_id === user.id) {
+    return NextResponse.json({ error: "You cannot request delivery on your own trip" }, { status: 400 });
+  }
+
+  if (weight > Number(trip.available_weight ?? 0)) {
+    return NextResponse.json({ error: "Package weight exceeds the traveler's available capacity" }, { status: 400 });
   }
 
   const payload = {
@@ -262,9 +285,10 @@ export async function PATCH(request: NextRequest) {
       `
         id,
         status,
+        weight,
         sender_id,
         receiver_id,
-        trip:trips!inner(traveler_id)
+        trip:trips!inner(id, traveler_id, available_weight, status)
       `,
     )
     .eq("id", requestId)
@@ -283,9 +307,18 @@ export async function PATCH(request: NextRequest) {
   }
 
   const currentStatus = (requestRow as any).status as string;
+  const trip = Array.isArray((requestRow as any).trip)
+    ? (requestRow as any).trip[0]
+    : (requestRow as any).trip;
+  const requestWeight = Number((requestRow as any).weight ?? 0);
+  const availableWeight = Number(trip?.available_weight ?? 0);
   let data: { id: string; status: string } | null = null;
 
   if (currentStatus === "PENDING") {
+    if (requestWeight > availableWeight) {
+      return NextResponse.json({ error: "This request exceeds remaining trip capacity" }, { status: 400 });
+    }
+
     const result = await supabase
       .from("delivery_requests")
       .update({ status: "MATCHED" })
@@ -299,6 +332,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     data = result.data;
+
+    const remainingWeight = Math.max(availableWeight - requestWeight, 0);
+    const { error: tripUpdateError } = await supabase
+      .from("trips")
+      .update({
+        available_weight: remainingWeight,
+        status: remainingWeight > 0 ? "OPEN" : "IN_PROGRESS",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", trip.id);
+
+    if (tripUpdateError) {
+      return NextResponse.json({ error: tripUpdateError.message }, { status: 400 });
+    }
   } else if (currentStatus === "MATCHED") {
     data = { id: requestId, status: "MATCHED" };
   } else {
