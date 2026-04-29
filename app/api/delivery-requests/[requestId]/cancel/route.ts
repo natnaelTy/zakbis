@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * DELETE: Cancel a PENDING delivery request.
- * Only the sender (or receiver who created it) can cancel.
+ * The sender/receiver owner or the traveler for the trip can cancel while pending.
  */
 export async function DELETE(
   _request: NextRequest,
@@ -23,7 +23,7 @@ export async function DELETE(
   // Fetch the delivery request
   const { data: row, error: fetchError } = await supabase
     .from("delivery_requests")
-    .select("id, status, sender_id, receiver_id")
+    .select("id, status, sender_id, receiver_id, trip:trips!inner(traveler_id)")
     .eq("id", requestId)
     .maybeSingle();
 
@@ -31,9 +31,12 @@ export async function DELETE(
     return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
 
-  // Only the creator can cancel
-  const isOwner = row.sender_id === user.id || row.receiver_id === user.id;
-  if (!isOwner) {
+  const travelerId = Array.isArray((row as any).trip)
+    ? (row as any).trip[0]?.traveler_id
+    : (row as any).trip?.traveler_id;
+
+  const canCancel = row.sender_id === user.id || row.receiver_id === user.id || travelerId === user.id;
+  if (!canCancel) {
     return NextResponse.json({ error: "You cannot cancel this request" }, { status: 403 });
   }
 
