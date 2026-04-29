@@ -44,14 +44,34 @@ export default function OnboardingPage() {
     setLoading(true);
     const supabase = createClient();
 
-    const { error } = await supabase.auth.updateUser({
+    // 1. Update Auth Metadata (used by the auth callback and session checks)
+    const { error: authError } = await supabase.auth.updateUser({
       data: { role: selectedRole },
     });
 
-    if (error) {
-      toast.error(error.message);
+    if (authError) {
+      toast.error(authError.message);
       setLoading(false);
       return;
+    }
+
+    // 2. Update the Profiles table (used by the dashboard and other features)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          role: selectedRole,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+
+      if (profileError) {
+        toast.error("Failed to update profile record");
+        console.error(profileError);
+        setLoading(false);
+        return;
+      }
     }
 
     toast.success("Profile setup complete!");
