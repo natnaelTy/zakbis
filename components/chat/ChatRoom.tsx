@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/lib/redux/store";
 import { fetchMessages, addMessage, setCurrentUser, clearChat } from "@/lib/redux/features/chat/chatSlice";
 
-interface Message {
+export interface Message {
   id: string;
   chat_id: string;
   sender_id: string;
