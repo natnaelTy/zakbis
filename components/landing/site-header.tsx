@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { Menu, X, ChevronDown, LayoutDashboard, User, MessageSquare, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { clearAuth } from "@/lib/redux/features/auth/authSlice";
@@ -96,32 +96,32 @@ export function SiteHeader() {
 
                   <Link
                     href="/dashboard"
-                    className="block px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100"
+                    className="block px-3 py-2 rounded-sm text-sm text-slate-700 hover:bg-slate-100 flex items-center"
                     onClick={() => setMenuOpen(false)}
                   >
-                    Dashboard
+                    <LayoutDashboard size={16} className="mr-2" />Dashboard
                   </Link>
                   <Link
                     href="/profile"
-                    className="block px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100"
+                    className="block px-3 py-2 rounded-sm text-sm text-slate-700 hover:bg-slate-100 flex items-center"
                     onClick={() => setMenuOpen(false)}
                   >
-                    Profile
+                    <User size={16} className="mr-2" />Profile
                   </Link>
                   <Link
                     href="/chat"
-                    className="block px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100"
+                    className="block px-3 py-2 rounded-sm text-sm text-slate-700 hover:bg-slate-100 flex items-center"
                     onClick={() => setMenuOpen(false)}
                   >
-                    Chats
+                    <MessageSquare size={16} className="mr-2" />Chats
                   </Link>
 
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="w-full text-left px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50"
+                    className="w-full text-left px-3 py-2 rounded-sm text-sm text-red-600 hover:bg-red-50 flex items-center"
                   >
-                    Log out
+                    <LogOut size={16} className="mr-2" />Log out
                   </button>
                 </div>
               )}
@@ -168,17 +168,17 @@ export function SiteHeader() {
                   <p className="text-sm font-semibold text-black truncate">{fullName}</p>
                   {role && <p className="text-xs text-slate-500">{role}</p>}
                 </div>
-                <Link href="/dashboard" className="text-sm font-medium text-black text-left" onClick={() => setMobileOpen(false)}>
-                  Dashboard
+                <Link href="/dashboard" className="text-sm font-medium text-black text-left flex items-center" onClick={() => setMobileOpen(false)}>
+                  <LayoutDashboard size={16} className="mr-2" />Dashboard
                 </Link>
-                <Link href="/profile" className="text-sm font-medium text-black text-left" onClick={() => setMobileOpen(false)}>
-                  Profile
+                <Link href="/profile" className="text-sm font-medium text-black text-left flex items-center" onClick={() => setMobileOpen(false)}>
+                  <User size={16} className="mr-2" />Profile
                 </Link>
-                <Link href="/chat" className="text-sm font-medium text-black text-left" onClick={() => setMobileOpen(false)}>
-                  Chats
+                <Link href="/chat" className="text-sm font-medium text-black text-left flex items-center" onClick={() => setMobileOpen(false)}>
+                  <MessageSquare size={16} className="mr-2" />Chats
                 </Link>
-                <button type="button" onClick={handleLogout} className="text-sm font-medium text-red-600 text-left">
-                  Log out
+                <button type="button" onClick={handleLogout} className="text-sm font-medium text-red-600 text-left flex items-center">
+                  <LogOut size={16} className="mr-2" />Log out
                 </button>
               </>
             ) : (
