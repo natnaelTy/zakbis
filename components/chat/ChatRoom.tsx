@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Send, Paperclip, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { useUnread } from "@/components/app/unread-provider";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState, AppDispatch } from "@/lib/redux/store";
+import { fetchMessages, addMessage, setCurrentUser, clearChat } from "@/lib/redux/features/chat/chatSlice";
 
 interface Message {
   id: string;
@@ -45,126 +48,82 @@ export function ChatRoom({
   deliveryType,
   className,
 }: ChatRoomProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const { messages, loading, currentUser } = useSelector((state: RootState) => state.chat);
+  const [newMessage, setNewMessage] = React.useState("");
+  const [uploading, setUploading] = React.useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentUserRef = useRef<string | null>(null);
   const { markRead } = useUnread();
-
-  useEffect(() => {
-    currentUserRef.current = currentUser;
-  }, [currentUser]);
 
   // Load initial messages once, then receive new messages through Supabase Realtime.
   useEffect(() => {
-    let isMounted = true;
     const supabase = createClient();
     const senderCache = new Map<string, Message["sender"]>();
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function attachSender(row: RealtimeMessageRow): Promise<Message> {
       let sender = senderCache.get(row.sender_id);
-
       if (!sender) {
         const { data } = await supabase
           .from("profiles")
           .select("full_name, avatar_url")
           .eq("id", row.sender_id)
           .maybeSingle();
-
         sender = {
           full_name: data?.full_name ?? "Unknown",
           avatar_url: data?.avatar_url ?? null,
         };
         senderCache.set(row.sender_id, sender);
       }
-
       return { ...row, sender };
     }
 
-    function appendMessage(message: Message) {
-      setMessages((current) => {
-        if (current.some((item) => item.id === message.id)) {
-          return current;
-        }
-
-        return [...current, message].sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-        );
-      });
-    }
-
-    async function load() {
-      const response = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      if (!isMounted) return;
-
-      if (!response.ok) {
-        setLoading(false);
-        return;
+    // Load initial messages via Redux thunk
+    dispatch(fetchMessages(chatId)).then((action) => {
+      if (fetchMessages.fulfilled.match(action)) {
+        // after loading, set current user if provided by API
+        const payload = (action.payload as any) ?? [];
+        // API also returns currentUserId in a separate field; fetch it manually
+        fetch(`/api/chats/${chatId}`)
+          .then((res) => res.json())
+          .then((p) => {
+            dispatch(setCurrentUser(p?.currentUserId ?? null));
+            markRead(chatId);
+          })
+          .catch(() => {});
       }
+    });
 
-      const payload = await response.json();
-      const initialMessages = (payload?.data as Message[]) ?? [];
-      initialMessages.forEach((message) => {
-        if (message.sender) {
-          senderCache.set(message.sender_id, message.sender);
+    channel = supabase
+      .channel(`chat-room:${chatId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `chat_id=eq.${chatId}`,
+        },
+        async (payload) => {
+          const message = await attachSender(payload.new as RealtimeMessageRow);
+          dispatch(addMessage(message));
+          if (message.sender_id !== currentUser) {
+            await markRead(chatId);
+          }
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error(`Realtime chat subscription failed: ${status}`);
         }
       });
-
-      setMessages(initialMessages);
-      setCurrentUser((payload?.currentUserId as string) ?? null);
-      setLoading(false);
-      await markRead(chatId);
-    }
-
-    async function initialize() {
-      await load();
-      if (!isMounted) return;
-
-      channel = supabase
-        .channel(`chat-room:${chatId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `chat_id=eq.${chatId}`,
-          },
-          async (payload) => {
-            const message = await attachSender(payload.new as RealtimeMessageRow);
-            if (isMounted) {
-              appendMessage(message);
-              if (message.sender_id !== currentUserRef.current) {
-                await markRead(chatId);
-              }
-            }
-          },
-        )
-        .subscribe((status) => {
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-            console.error(`Realtime chat subscription failed: ${status}`);
-          }
-        });
-    }
-
-    initialize();
 
     return () => {
-      isMounted = false;
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
+      dispatch(clearChat());
     };
-  }, [chatId, markRead]);
+  }, [chatId, dispatch, markRead, currentUser]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
