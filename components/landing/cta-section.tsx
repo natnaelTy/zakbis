@@ -51,7 +51,7 @@ export function CtaSection() {
               </Button>
             </div>
           </div>
-          <div className="relative z-10 mt-12 -mx-6 sm:-mx-10 md:-mx-16 lg:absolute lg:bottom-0 lg:right-0 lg:mt-16 lg:mx-0 lg:h-[450px] p-2 md:p-0">
+          <div className="relative z-10 mt-12 -mx-6 sm:-mx-10 md:-mx-16 lg:absolute lg:bottom-0 lg:right-0 lg:mt-16 lg:mx-0 lg:h-[480px] p-2 md:p-0">
             <Image
               alt="App screenshot"
               src="/cta.png"
