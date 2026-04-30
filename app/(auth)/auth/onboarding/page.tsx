@@ -80,14 +80,14 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="w-full max-w-xl mx-auto py-12 px-4">
-      <div className="bg-white rounded-3xl border border-black/10 p-8 shadow-sm">
+    <div className="w-full max-w-2xl mx-auto py-12 ">
+      <div className="bg-white rounded-3xl border border-black/10 p-6 shadow-sm">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-black mb-2">Welcome to Zakbis</h1>
           <p className="text-slate-500">How would you like to use the platform?</p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-3 ">
           {roles.map((role) => (
             <button
               key={role.id}
