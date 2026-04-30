@@ -78,7 +78,7 @@ export function Globe({
       const deltaX = e.clientX - pointerInteracting.current.x
       const deltaY = e.clientY - pointerInteracting.current.y
       dragOffset.current = { phi: deltaX / 300, theta: deltaY / 1000 }
-      const now = Date.now()
+      const now = React.useMemo(() => Date.now(), []);
       if (lastPointer.current) {
         const dt = Math.max(now - lastPointer.current.t, 1)
         const maxVelocity = 0.15
