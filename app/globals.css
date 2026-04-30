@@ -35,6 +35,10 @@
     --ring: 0 0% 0%;
 
     --radius: 0.5rem;
+
+    --accents-1: #fafafa;
+
+    --accents-2: #eaeaea;
   }
 
   * {
@@ -77,6 +81,15 @@
   [class*="tabular-nums"],
   time {
     font-variant-numeric: tabular-nums;
+  }
+  .theme {
+    --animate-skeleton-loading: skeletonLoading 8s infinite ease-in-out;
+    --color-accents-2: var(----accents-2);
+    --color-accents-1: var(----accents-1);
+  }
+  .dark {
+    --accents-2: #333333;
+    --accents-1: #111111;
   }
 }
 
@@ -144,7 +157,17 @@
   }
 }
 
-
 .btn-primary {
   @apply bg-emerald-700 text-white font-semibold rounded-full px-8 py-3 transition-all duration-200 hover:shadow-lg hover:bg-emerald-800;
+}
+
+@theme inline {
+  @keyframes skeletonLoading {
+  0% {
+    backgroundPosition: 200% 0;
+    }
+  100% {
+    backgroundPosition: -200% 0;
+    }
+  }
 }
