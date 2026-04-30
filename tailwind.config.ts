@@ -79,11 +79,23 @@ const config: Config = {
   				to: {
   					height: '0'
   				}
+  			},
+  			skeletonLoading: {
+  				'0%': {
+  					backgroundPosition: '200% 0'
+  				},
+  				'100%': {
+  					backgroundPosition: '-200% 0'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'skeleton-loading': 'skeletonLoading 8s infinite ease-in-out'
+  		},
+  		backgroundImage: {
+  			'skeleton-gradient': 'linear-gradient(270deg, var(--accents-1), var(--accents-2), var(--accents-2), var(--accents-1))'
   		}
   	}
   },
