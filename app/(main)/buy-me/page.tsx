@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ImageUploadField } from "@/components/ui/image-uploader";
 
 interface Profile {
   id: string;
@@ -70,11 +71,15 @@ export default function BuyMePage() {
   // Receipt upload state
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
-  const [fileInputRef, setFileInputRef] = useState<Record<string, HTMLInputElement | null>>({});
+  const [fileInputRef, setFileInputRef] = useState<
+    Record<string, HTMLInputElement | null>
+  >({});
 
   // Receiver form
   const [productName, setProductName] = useState("");
   const [productUrl, setProductUrl] = useState("");
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [useImageUpload, setUseImageUpload] = useState(false);
   const [destination, setDestination] = useState("Addis Ababa");
   const [estimatedPrice, setEstimatedPrice] = useState("");
   const [notes, setNotes] = useState("");
@@ -100,7 +105,8 @@ export default function BuyMePage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not load Buy Me requests."); toast.error(payload?.error ?? "Could not load Buy Me requests.");
+      setError(payload?.error ?? "Could not load Buy Me requests.");
+      toast.error(payload?.error ?? "Could not load Buy Me requests.");
       setLoading(false);
       return;
     }
@@ -119,22 +125,42 @@ export default function BuyMePage() {
     setSubmitting(true);
     setError(null);
 
-    const response = await fetch("/api/buy-me-requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        product_name: productName,
-        product_url: productUrl,
-        destination,
-        estimated_price: estimatedPrice ? Number(estimatedPrice) : null,
-        notes: notes || null,
-      }),
-    });
+    // If the user chose to upload an image, send multipart/form-data; otherwise JSON.
+    let response;
+    if (useImageUpload && productImageFile) {
+      const formData = new FormData();
+      formData.append("product_name", productName);
+      formData.append("product_url", productUrl);
+      formData.append("destination", destination);
+      formData.append(
+        "estimated_price",
+        estimatedPrice ? String(estimatedPrice) : "",
+      );
+      formData.append("notes", notes || "");
+      formData.append("image", productImageFile);
+      response = await fetch("/api/buy-me-requests", {
+        method: "POST",
+        body: formData,
+      });
+    } else {
+      response = await fetch("/api/buy-me-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_name: productName,
+          product_url: productUrl,
+          destination,
+          estimated_price: estimatedPrice ? Number(estimatedPrice) : null,
+          notes: notes || null,
+        }),
+      });
+    }
 
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not create request."); toast.error(payload?.error ?? "Could not create request.");
+      setError(payload?.error ?? "Could not create request.");
+      toast.error(payload?.error ?? "Could not create request.");
       setSubmitting(false);
       return;
     }
@@ -164,7 +190,8 @@ export default function BuyMePage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not accept request."); toast.error(payload?.error ?? "Could not accept request.");
+      setError(payload?.error ?? "Could not accept request.");
+      toast.error(payload?.error ?? "Could not accept request.");
       setAcceptingId(null);
       return;
     }
@@ -227,7 +254,8 @@ export default function BuyMePage() {
     const payload = await response.json();
 
     if (!response.ok) {
-      setError(payload?.error ?? "Could not confirm delivery."); toast.error(payload?.error ?? "Could not confirm delivery.");
+      setError(payload?.error ?? "Could not confirm delivery.");
+      toast.error(payload?.error ?? "Could not confirm delivery.");
       setDeliveringId(null);
       return;
     }
@@ -238,16 +266,23 @@ export default function BuyMePage() {
   }
 
   const receiverRequests = useMemo(() => requests, [requests]);
-  const travelerOpen = useMemo(() => requests.filter((r) => r.status === "OPEN"), [requests]);
+  const travelerOpen = useMemo(
+    () => requests.filter((r) => r.status === "OPEN"),
+    [requests],
+  );
   const travelerMine = useMemo(
-    () => requests.filter((r) => r.traveler_id === userId && r.status !== "OPEN"),
-    [requests, userId]
+    () =>
+      requests.filter((r) => r.traveler_id === userId && r.status !== "OPEN"),
+    [requests, userId],
   );
 
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-lg border-b border-black/5 px-4 h-14 flex items-center gap-3 shadow-sm">
-        <Link href="/dashboard" className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
+        <Link
+          href="/dashboard"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+        >
           <ArrowLeft size={18} className="text-black" />
         </Link>
         <h1 className="text-base font-bold text-black flex-1">Buy Me Hub</h1>
@@ -278,7 +313,9 @@ export default function BuyMePage() {
                   <CardContent className="pt-0">
                     <form onSubmit={createRequest} className="space-y-3">
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-500">Item name</label>
+                        <label className="text-xs font-medium text-slate-500">
+                          Item name
+                        </label>
                         <Input
                           required
                           value={productName}
@@ -287,20 +324,64 @@ export default function BuyMePage() {
                           className="h-11 rounded-xl"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-500">Product URL</label>
-                        <Input
-                          required
-                          type="url"
-                          value={productUrl}
-                          onChange={(e) => setProductUrl(e.target.value)}
-                          placeholder="https://..."
-                          className="h-11 rounded-xl"
-                        />
+                      {/* Two mode buttons */}
+                      <div className="flex gap-2 mb-2">
+                        <Button
+                          type="button"
+                          variant={useImageUpload ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setUseImageUpload(true);
+                            setProductUrl("");
+                          }}
+                        >
+                          Upload Image
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={!useImageUpload ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setUseImageUpload(false);
+                            setProductImageFile(null);
+                          }}
+                        >
+                          Paste URL
+                        </Button>
                       </div>
+                      {useImageUpload ? (
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-slate-500">
+                            Upload Image
+                          </label>
+
+                          {/* New ImageUploader component */}
+                          <ImageUploadField
+                            value={productImageFile}
+                            onChange={(file) => setProductImageFile(file as File | null)}
+                            maxSize={4 * 1024 * 1024}
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-slate-500">
+                            Product URL
+                          </label>
+                          <Input
+                            required
+                            type="url"
+                            value={productUrl}
+                            onChange={(e) => setProductUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="h-11 rounded-xl"
+                          />
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">Destination</label>
+                          <label className="text-xs font-medium text-slate-500">
+                            Destination
+                          </label>
                           <Input
                             required
                             value={destination}
@@ -310,7 +391,9 @@ export default function BuyMePage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs font-medium text-slate-500">Est. Price ($)</label>
+                          <label className="text-xs font-medium text-slate-500">
+                            Est. Price ($)
+                          </label>
                           <Input
                             value={estimatedPrice}
                             onChange={(e) => setEstimatedPrice(e.target.value)}
@@ -323,7 +406,9 @@ export default function BuyMePage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-500">Notes (optional)</label>
+                        <label className="text-xs font-medium text-slate-500">
+                          Notes (optional)
+                        </label>
                         <Textarea
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
@@ -332,8 +417,14 @@ export default function BuyMePage() {
                         />
                       </div>
 
-                      <Button type="submit" disabled={submitting} className="w-full h-11 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors">
-                        {submitting ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
+                      <Button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full h-11 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors"
+                      >
+                        {submitting && (
+                          <Loader2 size={16} className="animate-spin" />
+                        )}
                         {submitting ? "Posting..." : "Post Request"}
                       </Button>
                     </form>
@@ -346,23 +437,45 @@ export default function BuyMePage() {
                   </CardHeader>
                   <CardContent className="pt-0 space-y-3">
                     {receiverRequests.length === 0 ? (
-                      <p className="text-sm text-slate-500">No requests posted yet.</p>
+                      <p className="text-sm text-slate-500">
+                        No requests posted yet.
+                      </p>
                     ) : (
                       receiverRequests.map((r) => (
-                        <div key={r.id} className="rounded-xl border border-black/10 p-3">
+                        <div
+                          key={r.id}
+                          className="rounded-xl border border-black/10 p-3"
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-black truncate">{r.product_name}</p>
-                              <p className="text-xs text-slate-500 truncate mt-0.5">{r.destination}</p>
+                              <p className="text-sm font-semibold text-black truncate">
+                                {r.product_name}
+                              </p>
+                              <p className="text-xs text-slate-500 truncate mt-0.5">
+                                {r.destination}
+                              </p>
                             </div>
-                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${statusStyles[r.status]}`}>
+                            <span
+                              className={`text-[10px] px-2 py-1 rounded-full font-semibold ${statusStyles[r.status]}`}
+                            >
                               {r.status}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                            {r.estimated_price ? <span>${Number(r.estimated_price).toFixed(2)}</span> : <span>Price TBD</span>}
+                            {r.estimated_price ? (
+                              <span>
+                                ${Number(r.estimated_price).toFixed(2)}
+                              </span>
+                            ) : (
+                              <span>Price TBD</span>
+                            )}
                             <span>·</span>
-                            <a className="inline-flex items-center gap-1 underline" href={r.product_url} target="_blank" rel="noreferrer">
+                            <a
+                              className="inline-flex items-center gap-1 underline"
+                              href={r.product_url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
                               View link <ExternalLink size={12} />
                             </a>
                           </div>
@@ -378,41 +491,74 @@ export default function BuyMePage() {
               <>
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Open Shopping Requests</CardTitle>
+                    <CardTitle className="text-base">
+                      Open Shopping Requests
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0 space-y-3">
                     {travelerOpen.length === 0 ? (
-                      <p className="text-sm text-slate-500">No open requests right now.</p>
+                      <p className="text-sm text-slate-500">
+                        No open requests right now.
+                      </p>
                     ) : (
                       travelerOpen.map((r) => (
-                        <div key={r.id} className="rounded-xl border border-black/10 p-3">
+                        <div
+                          key={r.id}
+                          className="rounded-xl border border-black/10 p-3"
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-black truncate">{r.product_name}</p>
-                              <p className="text-xs text-slate-500 mt-0.5">for {r.receiver?.full_name ?? "Receiver"} · {r.destination}</p>
+                              <p className="text-sm font-semibold text-black truncate">
+                                {r.product_name}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                for {r.receiver?.full_name ?? "Receiver"} ·{" "}
+                                {r.destination}
+                              </p>
                             </div>
-                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${statusStyles[r.status]}`}>
+                            <span
+                              className={`text-[10px] px-2 py-1 rounded-full font-semibold ${statusStyles[r.status]}`}
+                            >
                               {r.status}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                            {r.estimated_price ? <span>${Number(r.estimated_price).toFixed(2)}</span> : <span>Price TBD</span>}
+                            {r.estimated_price ? (
+                              <span>
+                                ${Number(r.estimated_price).toFixed(2)}
+                              </span>
+                            ) : (
+                              <span>Price TBD</span>
+                            )}
                             <span>·</span>
-                            <a className="inline-flex items-center gap-1 underline" href={r.product_url} target="_blank" rel="noreferrer">
+                            <a
+                              className="inline-flex items-center gap-1 underline"
+                              href={r.product_url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
                               Open link <ExternalLink size={12} />
                             </a>
                           </div>
 
-                          {r.notes && <p className="text-xs text-slate-500 mt-2">{r.notes}</p>}
+                          {r.notes && (
+                            <p className="text-xs text-slate-500 mt-2">
+                              {r.notes}
+                            </p>
+                          )}
 
                           <Button
                             onClick={() => acceptRequest(r.id)}
                             disabled={acceptingId === r.id}
                             className="w-full mt-3 h-10 rounded-xl bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors"
                           >
-                            {acceptingId === r.id && <Loader2 size={15} className="animate-spin" />}
-                            {acceptingId === r.id ? "Accepting..." : "Accept Request"}
+                            {acceptingId === r.id && (
+                              <Loader2 size={15} className="animate-spin" />
+                            )}
+                            {acceptingId === r.id
+                              ? "Accepting..."
+                              : "Accept Request"}
                           </Button>
                         </div>
                       ))
@@ -422,26 +568,50 @@ export default function BuyMePage() {
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">My Shopping Jobs</CardTitle>
+                    <CardTitle className="text-base">
+                      My Shopping Jobs
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0 space-y-3">
                     {travelerMine.length === 0 ? (
-                      <p className="text-sm text-slate-500">No accepted jobs yet.</p>
+                      <p className="text-sm text-slate-500">
+                        No accepted jobs yet.
+                      </p>
                     ) : (
                       travelerMine.map((r) => (
-                        <div key={r.id} className="rounded-xl border border-black/10 p-3 space-y-2">
+                        <div
+                          key={r.id}
+                          className="rounded-xl border border-black/10 p-3 space-y-2"
+                        >
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-semibold text-black truncate">{r.product_name}</p>
-                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold shrink-0 ${statusStyles[r.status]}`}>
+                            <p className="text-sm font-semibold text-black truncate">
+                              {r.product_name}
+                            </p>
+                            <span
+                              className={`text-[10px] px-2 py-1 rounded-full font-semibold shrink-0 ${statusStyles[r.status]}`}
+                            >
                               {r.status}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500">Destination: {r.destination}</p>
+                          <p className="text-xs text-slate-500">
+                            Destination: {r.destination}
+                          </p>
 
                           <div className="flex items-center gap-2 text-xs text-slate-500">
-                            {r.estimated_price ? <span>${Number(r.estimated_price).toFixed(2)}</span> : <span>Price TBD</span>}
+                            {r.estimated_price ? (
+                              <span>
+                                ${Number(r.estimated_price).toFixed(2)}
+                              </span>
+                            ) : (
+                              <span>Price TBD</span>
+                            )}
                             <span>·</span>
-                            <a className="inline-flex items-center gap-1 underline" href={r.product_url} target="_blank" rel="noreferrer">
+                            <a
+                              className="inline-flex items-center gap-1 underline"
+                              href={r.product_url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
                               Product link <ExternalLink size={12} />
                             </a>
                           </div>
@@ -474,8 +644,17 @@ export default function BuyMePage() {
                                   disabled={uploadingId === r.id}
                                   className="h-9 w-full text-xs border-brand-green/20 text-brand-green hover:bg-brand-green/5"
                                 >
-                                  {uploadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                  {uploadingId === r.id ? "Uploading..." : "Select Receipt Image"}
+                                  {uploadingId === r.id ? (
+                                    <Loader2
+                                      size={14}
+                                      className="animate-spin"
+                                    />
+                                  ) : (
+                                    <Upload size={14} />
+                                  )}
+                                  {uploadingId === r.id
+                                    ? "Uploading..."
+                                    : "Select Receipt Image"}
                                 </Button>
                               </div>
                               <p className="text-[10px] text-slate-400 text-center">
@@ -491,8 +670,14 @@ export default function BuyMePage() {
                               disabled={deliveringId === r.id}
                               className="w-full h-9 rounded-lg bg-brand-green text-white shadow-sm ring-1 ring-black/5 hover:bg-brand-greenLight transition-colors text-xs"
                             >
-                              {deliveringId === r.id ? <Loader2 size={14} className="animate-spin" /> : <PackageCheck size={14} />}
-                              {deliveringId === r.id ? "Confirming..." : "Confirm Delivery"}
+                              {deliveringId === r.id ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <PackageCheck size={14} />
+                              )}
+                              {deliveringId === r.id
+                                ? "Confirming..."
+                                : "Confirm Delivery"}
                             </Button>
                           )}
 
@@ -514,17 +699,29 @@ export default function BuyMePage() {
             {profile?.role === "SENDER" && (
               <Card>
                 <CardContent className="p-5 text-center">
-                  <ShoppingBag size={28} className="text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm font-medium text-slate-600">Buy Me is available for Receivers and Travelers.</p>
-                  <p className="text-xs text-slate-500 mt-1">Switch role to receiver to post requests.</p>
+                  <ShoppingBag
+                    size={28}
+                    className="text-slate-300 mx-auto mb-3"
+                  />
+                  <p className="text-sm font-medium text-slate-600">
+                    Buy Me is available for Receivers and Travelers.
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Switch role to receiver to post requests.
+                  </p>
                 </CardContent>
               </Card>
             )}
 
             <Card className="border border-black/5 rounded-2xl shadow-none">
               <CardContent className="p-3">
-                <Link href="/chat" className="flex items-center justify-between text-sm text-black py-1">
-                  <span className="inline-flex items-center gap-2"><MessageCircle size={15} /> Go to chats</span>
+                <Link
+                  href="/chat"
+                  className="flex items-center justify-between text-sm text-black py-1"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <MessageCircle size={15} /> Go to chats
+                  </span>
                   <span className="text-slate-400">→</span>
                 </Link>
               </CardContent>
