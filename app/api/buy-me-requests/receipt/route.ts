@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { Buffer } from "buffer";
 
 /**
  * POST: Traveler uploads a receipt file or URL to confirm a purchase.
