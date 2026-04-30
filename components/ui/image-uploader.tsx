@@ -74,10 +74,10 @@ export function ImageUploadField({
     return (
       <Skeleton
         className={cn(
-          "rounded-lg border-2 border-dashed border-muted",
+          `rounded-lg border-2 border-dashed border-muted`,
           className,
+          aspectRatio ? `aspect-[${aspectRatio}/1]` : ""
         )}
-        style={{ aspectRatio }}
       />
     );
   }
