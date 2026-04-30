@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useAppSelector } from "@/lib/redux/hooks"
 import { LayoutDashboard, Send, MessageCircle, User, Bell } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -11,6 +12,8 @@ export function BottomNav() {
   const pathname = usePathname()
   const { total } = useUnread()
   const { unreadCount } = useNotifications()
+
+  const { profile } = useAppSelector((state) => state.auth);
 
   const navItems = [
     {
