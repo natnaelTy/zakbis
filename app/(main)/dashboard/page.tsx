@@ -2,10 +2,9 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TravelerDashboard } from "@/components/dashboard/traveler-dashboard";
 import { SenderReceiverDashboard } from "@/components/dashboard/sender-receiver-dashboard";
-import { Button } from "@/components/ui/button";
-
 export default async function DashboardPage() {
   const headerStore = await headers();
   const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host");
@@ -33,7 +32,8 @@ export default async function DashboardPage() {
         <div>
           <p className="text-sm text-slate-500 font-medium">Selam 👋</p>
           <h1 className="text-2xl font-bold tracking-tight text-black mt-0.5">
-            {profile.full_name.split(" ")[0]}
+            {/* AuthProfile uses `full_name` */}
+            {profile.full_name?.split(" ")[0]}
           </h1>
         </div>
 
