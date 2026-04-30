@@ -78,6 +78,13 @@ function PersonCard({
               Verified
             </span>
           )}
+          {/* Online status placeholder – replace with real data when available */}
+          {/* Assuming a `lastSeen` ISO string prop could be passed; if null, user is online */}
+          {/* For now we display a static "Online" badge */}
+          <span className="inline-flex items-center gap-1 text-[11px] text-green-600">
+            <svg className="w-2 h-2 fill-current" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" /></svg>
+            Online
+          </span>
         </div>
       </div>
     </div>
