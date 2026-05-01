@@ -1,25 +1,10 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Creates a Supabase client instance using environment variables.
- * This helper is kept for backward compatibility but the default export
- * now provides a ready‑to‑use client instance.
+ * Client‑side Supabase instance that uses the **public anon key**.
+ * This is safe to import in React client components (e.g., layout.tsx).
  */
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-      },
-    }
-  )
-}
-
-/**
- * A singleton Supabase client instance that can be imported throughout the app.
- * Exported as `supabase` to match existing imports.
- */
-export const supabase = createClient()
+export const supabase = createSupabaseClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
