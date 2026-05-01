@@ -133,34 +133,69 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Only receivers can create buy-me requests" }, { status: 403 });
   }
 
-  const body = await request.json();
+  // Determine request content type and parse accordingly
+  const contentType = request.headers.get("content-type") ?? "";
+  let productName = "";
+  let productUrl: string | null = null;
+  let productImage: File | null = null;
+  let destination = "";
+  let estimatedPrice: number | null = null;
+  let notes = "";
 
-  const productName = typeof body.product_name === "string" ? body.product_name.trim() : "";
-  const productUrl = typeof body.product_url === "string" ? body.product_url.trim() : "";
-  const destination = typeof body.destination === "string" ? body.destination.trim() : "";
-  const estimatedPrice =
-    typeof body.estimated_price === "number" && Number.isFinite(body.estimated_price)
-      ? body.estimated_price
-      : null;
-  const notes = typeof body.notes === "string" ? body.notes.trim() : "";
-
-  if (!productName || !productUrl || !destination) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  if (contentType.includes("application/json")) {
+    const body = await request.json();
+    productName = typeof body.product_name === "string" ? body.product_name.trim() : "";
+    productUrl = typeof body.product_url === "string" ? body.product_url.trim() : null;
+    destination = typeof body.destination === "string" ? body.destination.trim() : "";
+    estimatedPrice =
+      typeof body.estimated_price === "number" && Number.isFinite(body.estimated_price)
+        ? body.estimated_price
+        : null;
+    notes = typeof body.notes === "string" ? body.notes.trim() : "";
+  } else if (contentType.includes("multipart/form-data")) {
+    const form = await request.formData();
+    productName = (form.get("product_name") as string | null) ?? "";
+    productUrl = (form.get("product_url") as string | null) ?? null;
+    productImage = (form.get("image") as File) ?? null;
+    destination = (form.get("destination") as string | null) ?? "";
+    const price = form.get("estimated_price");
+    estimatedPrice = price ? Number(price) : null;
+    notes = (form.get("notes") as string | null) ?? "";
   }
 
-  const { data, error } = await supabase
-    .from("buy_me_requests")
-    .insert({
-      receiver_id: user.id,
-      product_name: productName,
-      product_url: productUrl,
-      destination,
-      estimated_price: estimatedPrice,
-      notes: notes || null,
-      status: "OPEN",
-    })
-    .select("id")
-    .maybeSingle();
+  // product_name and destination are always required. At least one of product_url or product_image must be provided.
+  if (!productName || !destination) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if (!productUrl && !productImage) {
+    return NextResponse.json({ error: "Either product URL or product image must be provided" }, { status: 400 });
+  }
+
+  // Build the record to insert
+  const insertData: any = {
+    receiver_id: user.id,
+    product_name: productName,
+    product_url: productUrl,
+    destination,
+    estimated_price: estimatedPrice,
+    notes: notes || null,
+    status: "OPEN",
+    product_image: null,
+  };
+
+  // If an image was provided, upload it to Supabase storage and store the public URL.
+  if (productImage) {
+    const filePath = `${user.id}/${Date.now()}_${productImage.name}`;
+    const { error: uploadError } = await supabase.storage.from("productimage").upload(filePath, productImage);
+    if (uploadError) {
+      return NextResponse.json({ error: uploadError.message }, { status: 400 });
+    }
+    const { data: publicData } = supabase.storage.from("productimage").getPublicUrl(filePath);
+    insertData.product_image = publicData?.publicUrl ?? null;
+  }
+
+  // Insert the request record
+  const { data, error } = await supabase.from("buy_me_requests").insert(insertData).select("id").maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
