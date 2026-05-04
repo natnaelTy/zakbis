@@ -1,15 +1,25 @@
 "use client";
+import { Suspense, FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-md rounded-2xl border border-black/10 p-6 sm:p-8" />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") ?? "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,7 +48,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(nextPath);
     router.refresh();
     toast.success("Login success");
   }
@@ -49,7 +59,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}`,
       },
     });
 
@@ -149,7 +159,7 @@ export default function LoginPage() {
 
       <p className="text-sm text-slate-600 mt-5">
         Don&apos;t have an account?{" "}
-        <Link href="/auth/signup" className="font-semibold text-black hover:underline">
+        <Link href={`/auth/signup?next=${encodeURIComponent(nextPath)}`} className="font-semibold text-black hover:underline">
           Sign up
         </Link>
       </p>
