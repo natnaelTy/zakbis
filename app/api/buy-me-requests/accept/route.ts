@@ -1,56 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
 
-async function ensureBuyMeChat(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+function createAdminClient() {
+  return createSupabaseJsClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+// Ensure a shopping chat exists for a buy-me request.
+async function ensureShoppingChat(
+  adminSupabase: ReturnType<typeof createAdminClient>,
   buyMeRequestId: string,
-  participantIds: string[],
+  travelerId: string,
+  receiverId: string,
 ) {
-  const { data: existingChat } = await supabase
-    .from("chats")
+  const { data: existingChat } = await adminSupabase
+    .from("shopping_chats")
     .select("id")
     .eq("buy_me_request_id", buyMeRequestId)
     .maybeSingle();
 
-  let chatId = existingChat?.id;
+  if (existingChat?.id) {
+    const { error } = await adminSupabase
+      .from("shopping_chats")
+      .update({ traveler_id: travelerId, receiver_id: receiverId })
+      .eq("id", existingChat.id);
 
-  if (!chatId) {
-    const { data: createdChat, error: chatCreateError } = await supabase
-      .from("chats")
-      .insert({
-        chat_type: "DIRECT",
-        buy_me_request_id: buyMeRequestId,
-      })
-      .select("id")
-      .maybeSingle();
-
-    if (chatCreateError || !createdChat?.id) {
-      throw new Error(chatCreateError?.message ?? "Could not create buy-me chat");
+    if (error) {
+      throw new Error(error.message);
     }
 
-    chatId = createdChat.id;
+    return existingChat.id;
   }
 
-  const participantRows = [...new Set(participantIds.filter(Boolean))].map((userId) => ({
-    chat_id: chatId,
-    user_id: userId,
-  }));
+  const { data: createdChat, error: chatCreateError } = await adminSupabase
+    .from("shopping_chats")
+    .insert({
+      buy_me_request_id: buyMeRequestId,
+      traveler_id: travelerId,
+      receiver_id: receiverId,
+    })
+    .select("id")
+    .maybeSingle();
 
-  if (participantRows.length > 0) {
-    const { error: participantError } = await supabase
-      .from("chat_participants")
-      .upsert(participantRows, { onConflict: "chat_id,user_id", ignoreDuplicates: true });
-
-    if (participantError) {
-      throw new Error(participantError.message);
-    }
+  if (chatCreateError || !createdChat?.id) {
+    throw new Error(chatCreateError?.message ?? "Could not create buy-me chat");
   }
 
-  return chatId;
+  return createdChat.id;
 }
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "requestId is required" }, { status: 400 });
   }
 
-  const { data: row, error: rowError } = await supabase
+  const { data: row, error: rowError } = await adminSupabase
     .from("buy_me_requests")
     .select("id, status, receiver_id, traveler_id")
     .eq("id", requestId)
@@ -87,7 +91,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (row.status === "OPEN") {
-    const { error: acceptError } = await supabase
+    const { error: acceptError } = await adminSupabase
       .from("buy_me_requests")
       .update({
         traveler_id: user.id,
@@ -104,7 +108,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const chatId = await ensureBuyMeChat(supabase, requestId, [user.id, row.receiver_id]);
+    const chatId = await ensureShoppingChat(
+      adminSupabase,
+      requestId,
+      user.id,
+      row.receiver_id,
+    );
     return NextResponse.json({ data: { request_id: requestId, status: "ACCEPTED", chat_id: chatId } });
   } catch (error) {
     return NextResponse.json(
