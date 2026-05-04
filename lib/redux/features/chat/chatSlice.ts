@@ -33,6 +33,19 @@ export const chatSlice = createSlice({
         );
       }
     },
+    replaceTempMessage: (state, action: PayloadAction<{ tempId: string; message: Message }>) => {
+      const { tempId, message } = action.payload;
+      const idx = state.messages.findIndex((m) => m.id === tempId);
+      if (idx !== -1) {
+        state.messages[idx] = message;
+      } else {
+        // If temp not found, just add normally
+        if (!state.messages.find((m) => m.id === message.id)) {
+          state.messages.push(message);
+        }
+      }
+      state.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    },
     setCurrentUser: (state, action: PayloadAction<string | null>) => {
       state.currentUser = action.payload;
     },
@@ -58,4 +71,5 @@ export const chatSlice = createSlice({
 });
 
 export const { addMessage, setCurrentUser, clearChat } = chatSlice.actions;
+export const { replaceTempMessage } = chatSlice.actions;
 export default chatSlice.reducer;
