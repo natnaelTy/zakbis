@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Loader2, Package, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,17 @@ export default function InviteDeliveryPage({ params }: { params: Promise<{ reque
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        const next = encodeURIComponent(`/invite/delivery/${requestId}`);
+        router.replace(`/auth/login?next=${next}`);
+      }
+    });
+  }, [requestId, router]);
 
   const handleJoin = async () => {
     setLoading(true);
