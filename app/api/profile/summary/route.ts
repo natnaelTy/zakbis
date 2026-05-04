@@ -38,10 +38,10 @@ export async function GET() {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const { count: chatCount } = await supabase
-    .from("chats")
-    .select("*", { count: "exact", head: true })
-    .limit(1);
+  const [{ count: triangularChatCount }, { count: shoppingChatCount }] = await Promise.all([
+    supabase.from("triangular_chats").select("*", { count: "exact", head: true }).limit(1),
+    supabase.from("shopping_chats").select("*", { count: "exact", head: true }).limit(1),
+  ]);
 
   const { count: tripCount } = await supabase
     .from("trips")
@@ -87,7 +87,7 @@ export async function GET() {
   return NextResponse.json({
     data: {
       profile,
-      chatCount: chatCount ?? 0,
+      chatCount: (triangularChatCount ?? 0) + (shoppingChatCount ?? 0),
       tripCount: tripCount ?? 0,
       sentCount: sentCount ?? 0,
       receivedCount: receivedCount ?? 0,
