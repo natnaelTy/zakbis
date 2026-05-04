@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Package, Plane, User } from "lucide-react";
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-2xl mx-auto py-12" />}>
+      <OnboardingPageContent />
+    </Suspense>
+  );
+}
+
+function OnboardingPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") ?? "/dashboard";
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
@@ -75,7 +85,7 @@ export default function OnboardingPage() {
     }
 
     toast.success("Profile setup complete!");
-    router.push("/dashboard");
+    router.push(nextPath);
     router.refresh();
   }
 
