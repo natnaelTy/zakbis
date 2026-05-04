@@ -116,9 +116,6 @@ export default function ChatDetailPage({
         <h1 className="text-base font-bold text-black flex-1">
           {chatDetails.chatType === "GROUP" ? "Delivery Group" : "Shopping Chat"}
         </h1>
-        <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
-          <User size={18} className="text-black" />
-        </button>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 space-y-4">
