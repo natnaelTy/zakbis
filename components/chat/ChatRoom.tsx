@@ -3,15 +3,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Send, Paperclip, Image as ImageIcon } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { useUnread } from "@/components/app/unread-provider";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/lib/redux/store";
-import { fetchMessages, addMessage, setCurrentUser, clearChat } from "@/lib/redux/features/chat/chatSlice";
+import { fetchMessages, addMessage, setCurrentUser, clearChat, replaceTempMessage } from "@/lib/redux/features/chat/chatSlice";
 
 export interface Message {
   id: string;
@@ -50,6 +57,7 @@ export function ChatRoom({
 }: ChatRoomProps) {
   const dispatch = useDispatch<AppDispatch>();
   const { messages, loading, currentUser } = useSelector((state: RootState) => state.chat);
+  const [participants, setParticipants] = React.useState<null | { senderId?: string | null; travelerId?: string | null; receiverId?: string | null }>(null);
   const [newMessage, setNewMessage] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -125,27 +133,71 @@ export function ChatRoom({
     };
   }, [chatId, dispatch, markRead, currentUser]);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    if (chatContainerRef.current) {
-      const { scrollHeight, clientHeight } = chatContainerRef.current;
-      chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
-    }
-  }, [messages]);
+    // Fetch participants and currentUserId alongside messages so we can map roles
+    (async () => {
+      try {
+        const res = await fetch(`/api/chats/${chatId}/messages`, { cache: "no-store" });
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload?.participants) setParticipants(payload.participants);
+          if (payload?.currentUserId) dispatch(setCurrentUser(payload.currentUserId));
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
+  }, [chatId, dispatch]);
+
+  // Note: `Conversation` handles sticky-to-bottom behavior. Keep ref available for
+  // any imperative needs, but auto-scroll is handled by the conversation component.
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
+    // optimistic UI: add a temporary message immediately
+    const tempId = `temp-${Date.now()}`;
+    const currentSender = messages.find((m) => m.sender_id === currentUser)?.sender ?? { full_name: "You", avatar_url: null };
+    const tempMessage: Message = {
+      id: tempId,
+      chat_id: chatId,
+      sender_id: currentUser ?? "",
+      text: newMessage,
+      created_at: new Date().toISOString(),
+      sender: currentSender,
+    };
 
-    const response = await fetch(`/api/chats/${chatId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: newMessage }),
-    });
+    dispatch(addMessage(tempMessage));
+    setNewMessage("");
 
-    if (response.ok) {
-      setNewMessage("");
-    } else {
-      console.error("Error sending message");
+    try {
+      const response = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: tempMessage.text }),
+      });
+
+      if (!response.ok) {
+        // remove temp message and notify
+        console.error("Error sending message");
+        return;
+      }
+
+      const payload = await response.json();
+      const serverData = payload?.data;
+      if (serverData) {
+        const serverMessage: Message = {
+          id: serverData.id,
+          chat_id: serverData.chat_id,
+          sender_id: serverData.sender_id,
+          text: serverData.text,
+          created_at: serverData.created_at,
+          sender: currentSender,
+        };
+        // replace the optimistic temp message with server message
+        dispatch((replaceTempMessage as any)({ tempId, message: serverMessage }));
+      }
+    } catch (err) {
+      console.error("Send error", err);
     }
   };
 
@@ -228,52 +280,93 @@ export function ChatRoom({
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={chatContainerRef}>
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="animate-spin text-slate-400" />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
-            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
-              <Send size={24} />
+      <div className="flex-1 relative" ref={chatContainerRef}>
+        <Conversation className="h-full">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="animate-spin text-slate-400" />
             </div>
-            <p className="text-sm">Start the conversation</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${msg.sender_id === currentUser ? "items-end" : "items-start"}`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-black">
-                    {msg.sender?.full_name ?? "Unknown"}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {new Date(msg.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-                <div
-                  className={`
-                    max-w-[75%] px-4 py-2 rounded-2xl text-sm
-                    ${msg.sender_id === currentUser
-                      ? "bg-black text-white rounded-br-none"
-                      : "bg-slate-100 text-black rounded-bl-none border border-black/5"
-                    }
-                  `}
-                >
-                  {msg.text}
-                </div>
+          ) : messages.length === 0 ? (
+            <ConversationEmptyState
+              className="h-full"
+              title="No messages yet"
+              description="Start the conversation"
+              icon={<Send size={24} />}
+            />
+          ) : (
+            <ConversationContent>
+              <div className="space-y-3">
+                {messages.map((msg) => {
+                  const isCurrent = msg.sender_id === currentUser;
+                  const role = participants
+                    ? msg.sender_id === participants.senderId
+                      ? "sender"
+                      : msg.sender_id === participants.travelerId
+                        ? "traveler"
+                        : msg.sender_id === participants.receiverId
+                          ? "receiver"
+                          : "other"
+                    : "other";
+
+                  const bubbleClass = isCurrent
+                    ? "bg-black text-white rounded-br-none"
+                    : role === "sender"
+                      ? "bg-amber-50 text-black border border-amber-200"
+                      : role === "traveler"
+                        ? "bg-sky-50 text-black border border-sky-200"
+                        : role === "receiver"
+                          ? "bg-emerald-50 text-black border border-emerald-200"
+                          : "bg-slate-100 text-black rounded-bl-none border border-black/5";
+
+                  const avatar = (
+                    <Avatar size={"sm"}>
+                      {msg.sender?.avatar_url ? (
+                        <AvatarImage src={msg.sender?.avatar_url} alt={msg.sender?.full_name ?? ""} />
+                      ) : (
+                        <AvatarFallback>
+                          {(msg.sender?.full_name || "?").split(" ").map((n) => n[0]).slice(0,2).join("")}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  );
+
+                  return (
+                    <div key={msg.id} className={`flex items-start ${isCurrent ? "justify-end" : "justify-start"}`}>
+                      {!isCurrent && (
+                        <div className="mr-2">{avatar}</div>
+                      )}
+
+                      <div className={`flex flex-col ${isCurrent ? "items-end" : "items-start"}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-black">
+                            {msg.sender?.full_name ?? "Unknown"}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(msg.created_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+
+                        <div className={`max-w-[205%] px-4 py-2 rounded-2xl text-xs ${bubbleClass}`}>
+                          {msg.text}
+                        </div>
+                      </div>
+
+                      {isCurrent && (
+                        <div className="ml-2">{avatar}</div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+            </ConversationContent>
+          )}
+
+          <ConversationScrollButton />
+        </Conversation>
+      </div>
 
       {/* Input */}
       <div className="p-3 border-t border-black/5">
