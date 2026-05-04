@@ -89,8 +89,8 @@ export function TrackingStepper({
                 </div>
                 <span
                   className={`
-                    text-xs font-medium transition-colors duration-300
-                    ${isActive ? "text-brand-green font-bold" : isCompleted ? "text-brand-green" : "text-slate-400"}
+                    text-xs transition-colors duration-300
+                    ${isActive ? "text-brand-green" : isCompleted ? "text-brand-green" : "text-slate-400"}
                   `}
                 >
                   {step.label}
