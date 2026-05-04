@@ -71,7 +71,7 @@ export async function GET(
 
   // Attach chat_id if one exists for this delivery request
   const { data: chat } = await supabase
-    .from("chats")
+    .from("triangular_chats")
     .select("id")
     .eq("delivery_request_id", requestId)
     .maybeSingle();
