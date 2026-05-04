@@ -17,12 +17,21 @@ export async function GET() {
   }
 
   // Get all chats the user is participating in
-  const { data: participantRows } = await supabase
-    .from("chat_participants")
-    .select("chat_id")
-    .eq("user_id", user.id);
+  const [triangularChats, shoppingChats] = await Promise.all([
+    supabase
+      .from("triangular_chats")
+      .select("id")
+      .or(`sender_id.eq.${user.id},traveler_id.eq.${user.id},receiver_id.eq.${user.id}`),
+    supabase
+      .from("shopping_chats")
+      .select("id")
+      .or(`traveler_id.eq.${user.id},receiver_id.eq.${user.id}`),
+  ]);
 
-  const chatIds = (participantRows ?? []).map((r) => r.chat_id);
+  const chatIds = [
+    ...((triangularChats.data ?? []).map((row) => row.id)),
+    ...((shoppingChats.data ?? []).map((row) => row.id)),
+  ];
 
   if (chatIds.length === 0) {
     return NextResponse.json({ data: { total: 0, chats: {} } });
@@ -90,14 +99,22 @@ export async function POST(request: Request) {
   }
 
   // Verify user is a participant
-  const { data: participant } = await supabase
-    .from("chat_participants")
-    .select("chat_id")
-    .eq("chat_id", chatId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: triangularChat }, { data: shoppingChat }] = await Promise.all([
+    supabase
+      .from("triangular_chats")
+      .select("id")
+      .eq("id", chatId)
+      .or(`sender_id.eq.${user.id},traveler_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .maybeSingle(),
+    supabase
+      .from("shopping_chats")
+      .select("id")
+      .eq("id", chatId)
+      .or(`traveler_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .maybeSingle(),
+  ]);
 
-  if (!participant) {
+  if (!triangularChat && !shoppingChat) {
     return NextResponse.json({ error: "Not a participant" }, { status: 403 });
   }
 
