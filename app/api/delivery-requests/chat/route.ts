@@ -4,51 +4,49 @@ import { createClient } from "@/lib/supabase/server";
 async function ensureDeliveryChat(
   supabase: Awaited<ReturnType<typeof createClient>>,
   deliveryRequestId: string,
-  participantIds: string[],
+  senderId: string,
+  travelerId: string,
+  receiverId: string | null,
 ) {
+  if (!senderId || !travelerId) {
+    throw new Error("Delivery chat requires sender and traveler");
+  }
+
   const { data: existingChat } = await supabase
-    .from("chats")
+    .from("triangular_chats")
     .select("id")
     .eq("delivery_request_id", deliveryRequestId)
     .maybeSingle();
 
-  let chatId = existingChat?.id;
+  if (existingChat?.id) {
+    const { error } = await supabase
+      .from("triangular_chats")
+      .update({ sender_id: senderId, traveler_id: travelerId, receiver_id: receiverId })
+      .eq("id", existingChat.id);
 
-  if (!chatId) {
-    const { data: createdChat, error: chatCreateError } = await supabase
-      .from("chats")
-      .insert({
-        chat_type: "GROUP",
-        delivery_request_id: deliveryRequestId,
-      })
-      .select("id")
-      .maybeSingle();
-
-    if (chatCreateError || !createdChat?.id) {
-      throw new Error(chatCreateError?.message ?? "Could not create chat");
+    if (error) {
+      throw new Error(error.message);
     }
 
-    chatId = createdChat.id;
+    return existingChat.id;
   }
 
-  const uniqueParticipants = [...new Set(participantIds.filter(Boolean))];
+  const { data: createdChat, error: chatCreateError } = await supabase
+    .from("triangular_chats")
+    .insert({
+      delivery_request_id: deliveryRequestId,
+      sender_id: senderId,
+      traveler_id: travelerId,
+      receiver_id: receiverId,
+    })
+    .select("id")
+    .maybeSingle();
 
-  if (uniqueParticipants.length > 0) {
-    const participantRows = uniqueParticipants.map((participantId) => ({
-      chat_id: chatId,
-      user_id: participantId,
-    }));
-
-    const { error: participantError } = await supabase
-      .from("chat_participants")
-      .upsert(participantRows, { onConflict: "chat_id,user_id", ignoreDuplicates: true });
-
-    if (participantError) {
-      throw new Error(participantError.message);
-    }
+  if (chatCreateError || !createdChat?.id) {
+    throw new Error(chatCreateError?.message ?? "Could not create chat");
   }
 
-  return chatId;
+  return createdChat.id;
 }
 
 export async function POST(request: NextRequest) {
@@ -104,7 +102,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const chatId = await ensureDeliveryChat(supabase, requestId, [travelerId, senderId ?? "", receiverId ?? ""]);
+    const chatId = await ensureDeliveryChat(
+      supabase,
+      requestId,
+      senderId as string,
+      travelerId,
+      receiverId,
+    );
     return NextResponse.json({ data: { chat_id: chatId } });
   } catch (error) {
     return NextResponse.json(
