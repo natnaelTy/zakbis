@@ -5,7 +5,7 @@
 -- By comparing this with the latest message timestamp, we derive unread count.
 
 create table if not exists chat_read_receipts (
-  chat_id    uuid not null references chats(id) on delete cascade,
+  chat_id    uuid not null,
   user_id    uuid not null references profiles(id) on delete cascade,
   last_read  timestamptz not null default now(),
   primary key (chat_id, user_id)

@@ -118,26 +118,25 @@ create table if not exists buy_me_requests (
 );
 
 -- ============================================================
--- CHATS TABLE
+-- DEDICATED CHAT TABLES
 -- ============================================================
-create type chat_type as enum ('GROUP', 'DIRECT');
-
-create table if not exists chats (
-  id                   uuid primary key default uuid_generate_v4(),
-  chat_type            chat_type not null default 'DIRECT',
-  delivery_request_id  uuid references delivery_requests(id) on delete cascade,
-  buy_me_request_id    uuid references buy_me_requests(id) on delete cascade,
-  created_at           timestamptz default now()
+create table if not exists triangular_chats (
+  id                 uuid primary key default uuid_generate_v4(),
+  delivery_request_id uuid not null unique references delivery_requests(id) on delete cascade,
+  sender_id          uuid not null references profiles(id) on delete cascade,
+  traveler_id        uuid not null references profiles(id) on delete cascade,
+  receiver_id        uuid references profiles(id) on delete cascade,
+  created_at         timestamptz default now(),
+  updated_at         timestamptz default now()
 );
 
--- ============================================================
--- CHAT PARTICIPANTS TABLE
--- ============================================================
-create table if not exists chat_participants (
-  chat_id    uuid not null references chats(id) on delete cascade,
-  user_id    uuid not null references profiles(id) on delete cascade,
-  joined_at  timestamptz default now(),
-  primary key (chat_id, user_id)
+create table if not exists shopping_chats (
+  id               uuid primary key default uuid_generate_v4(),
+  buy_me_request_id uuid not null unique references buy_me_requests(id) on delete cascade,
+  traveler_id      uuid not null references profiles(id) on delete cascade,
+  receiver_id      uuid not null references profiles(id) on delete cascade,
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
 );
 
 -- ============================================================
@@ -145,7 +144,7 @@ create table if not exists chat_participants (
 -- ============================================================
 create table if not exists messages (
   id          uuid primary key default uuid_generate_v4(),
-  chat_id     uuid not null references chats(id) on delete cascade,
+  chat_id     uuid not null,
   sender_id   uuid not null references profiles(id) on delete cascade,
   text        text not null,
   created_at  timestamptz default now()
@@ -159,8 +158,8 @@ alter table profiles enable row level security;
 alter table trips enable row level security;
 alter table delivery_requests enable row level security;
 alter table buy_me_requests enable row level security;
-alter table chats enable row level security;
-alter table chat_participants enable row level security;
+alter table triangular_chats enable row level security;
+alter table shopping_chats enable row level security;
 alter table messages enable row level security;
 
 -- Profiles: users can read all, only update their own
@@ -196,104 +195,85 @@ create policy "Receivers can create buy me requests" on buy_me_requests
 create policy "Participants can update buy me requests" on buy_me_requests
   for update using (auth.uid() = receiver_id or auth.uid() = traveler_id);
 
--- Chats: only participants can view
-create policy "Chat participants can view chats" on chats
+-- Triangular chats: sender, traveler, and receiver can view and create rows
+DROP POLICY IF EXISTS "Triangular chat participants can view chats" ON triangular_chats;
+create policy "Triangular chat participants can view chats" on triangular_chats
   for select using (
-    auth.uid() in (select user_id from chat_participants where chat_id = id)
+    auth.uid() in (sender_id, traveler_id, receiver_id)
   );
 
-create policy "Participants can create chats" on chats
+DROP POLICY IF EXISTS "Triangular chat participants can create chats" ON triangular_chats;
+create policy "Triangular chat participants can create chats" on triangular_chats
   for insert with check (
-    (
-      delivery_request_id is not null and exists (
-        select 1
-        from delivery_requests dr
-        join trips t on t.id = dr.trip_id
-        where dr.id = chats.delivery_request_id
-          and auth.uid() in (dr.sender_id, dr.receiver_id, t.traveler_id)
-      )
-    )
-    or
-    (
-      buy_me_request_id is not null and exists (
-        select 1
-        from buy_me_requests bmr
-        where bmr.id = chats.buy_me_request_id
-          and auth.uid() in (bmr.receiver_id, bmr.traveler_id)
-      )
-    )
+    auth.uid() in (sender_id, traveler_id, receiver_id)
   );
 
--- Chat participants: only participants can view
-create policy "Participants can view chat members" on chat_participants
+DROP POLICY IF EXISTS "Triangular chat participants can update chats" ON triangular_chats;
+create policy "Triangular chat participants can update chats" on triangular_chats
+  for update using (
+    auth.uid() in (sender_id, traveler_id, receiver_id)
+  ) with check (
+    auth.uid() in (sender_id, traveler_id, receiver_id)
+  );
+
+-- Shopping chats: traveler and receiver can view and create rows
+DROP POLICY IF EXISTS "Shopping chat participants can view chats" ON shopping_chats;
+create policy "Shopping chat participants can view chats" on shopping_chats
   for select using (
-    auth.uid() in (
-      select cp.user_id
-      from chat_participants cp
-      where cp.chat_id = chat_participants.chat_id
-    )
+    auth.uid() in (traveler_id, receiver_id)
   );
 
-create policy "Participants can insert chat members" on chat_participants
+DROP POLICY IF EXISTS "Shopping chat participants can create chats" ON shopping_chats;
+create policy "Shopping chat participants can create chats" on shopping_chats
   for insert with check (
-    (
-      exists (
-        select 1
-        from chats c
-        where c.id = chat_participants.chat_id
-          and c.delivery_request_id is not null
-          and auth.uid() in (
-            select dr.sender_id from delivery_requests dr where dr.id = c.delivery_request_id
-            union
-            select dr.receiver_id from delivery_requests dr where dr.id = c.delivery_request_id
-            union
-            select t.traveler_id
-            from delivery_requests dr
-            join trips t on t.id = dr.trip_id
-            where dr.id = c.delivery_request_id
-          )
-          and chat_participants.user_id in (
-            select dr.sender_id from delivery_requests dr where dr.id = c.delivery_request_id
-            union
-            select dr.receiver_id from delivery_requests dr where dr.id = c.delivery_request_id
-            union
-            select t.traveler_id
-            from delivery_requests dr
-            join trips t on t.id = dr.trip_id
-            where dr.id = c.delivery_request_id
-          )
-      )
-    )
-    or
-    (
-      exists (
-        select 1
-        from chats c
-        where c.id = chat_participants.chat_id
-          and c.buy_me_request_id is not null
-          and auth.uid() in (
-            select bmr.receiver_id from buy_me_requests bmr where bmr.id = c.buy_me_request_id
-            union
-            select bmr.traveler_id from buy_me_requests bmr where bmr.id = c.buy_me_request_id
-          )
-          and chat_participants.user_id in (
-            select bmr.receiver_id from buy_me_requests bmr where bmr.id = c.buy_me_request_id
-            union
-            select bmr.traveler_id from buy_me_requests bmr where bmr.id = c.buy_me_request_id
-          )
-      )
-    )
+    auth.uid() in (traveler_id, receiver_id)
+  );
+
+DROP POLICY IF EXISTS "Shopping chat participants can update chats" ON shopping_chats;
+create policy "Shopping chat participants can update chats" on shopping_chats
+  for update using (
+    auth.uid() in (traveler_id, receiver_id)
+  ) with check (
+    auth.uid() in (traveler_id, receiver_id)
   );
 
 -- Messages: only chat participants can read/write
+DROP POLICY IF EXISTS "Chat participants can read messages" ON messages;
 create policy "Chat participants can read messages" on messages
   for select using (
-    auth.uid() in (select user_id from chat_participants where chat_id = messages.chat_id)
+    exists (
+      select 1
+      from triangular_chats tc
+      where tc.id = messages.chat_id
+        and auth.uid() in (tc.sender_id, tc.traveler_id, tc.receiver_id)
+    )
+    or
+    exists (
+      select 1
+      from shopping_chats sc
+      where sc.id = messages.chat_id
+        and auth.uid() in (sc.traveler_id, sc.receiver_id)
+    )
   );
+
+DROP POLICY IF EXISTS "Chat participants can send messages" ON messages;
 create policy "Chat participants can send messages" on messages
   for insert with check (
-    auth.uid() = sender_id and
-    auth.uid() in (select user_id from chat_participants where chat_id = messages.chat_id)
+    auth.uid() = sender_id and (
+      exists (
+        select 1
+        from triangular_chats tc
+        where tc.id = messages.chat_id
+          and auth.uid() in (tc.sender_id, tc.traveler_id, tc.receiver_id)
+      )
+      or
+      exists (
+        select 1
+        from shopping_chats sc
+        where sc.id = messages.chat_id
+          and auth.uid() in (sc.traveler_id, sc.receiver_id)
+      )
+    )
   );
 
 -- ============================================================
