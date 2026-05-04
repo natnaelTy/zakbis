@@ -12,6 +12,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useUnread } from "@/components/app/unread-provider";
 
@@ -153,9 +154,9 @@ export default function ChatPage() {
         </div>
 
         {/* Chat List */}
-        <div className="space-y-2">
+        <div className="bg-white rounded-2xl overflow-hidden divide-y divide-black/5">
           {!loading && filteredChats.length > 0 ? (
-            <p className="text-xs text-slate-500 px-1">{filteredChats.length} chat{filteredChats.length === 1 ? "" : "s"}</p>
+            <p className="text-xs text-slate-500 px-1 mb-3">{filteredChats.length} chat{filteredChats.length === 1 ? "" : "s"}</p>
           ) : null}
 
           {loading ? (
@@ -194,19 +195,60 @@ export default function ChatPage() {
               <Link
                 key={chat.id}
                 href={`/chat/${chat.id}`}
-                className="flex items-center gap-3 p-4 rounded-2xl border border-black/5 bg-slate-50 shadow-sm hover:shadow-md hover:border-brand-green/20 transition-colors relative"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors relative"
               >
-                {/* Avatar placeholder */}
-                <div className={`
-                  w-10 h-10 rounded-full flex items-center justify-center shrink-0
-                  ${chat.chatType === "GROUP" ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" : "bg-slate-200 text-black"}
-                `}>
-                  {chat.chatType === "GROUP" ? (
-                    <Plane size={16} />
+                {/* Avatar: show participant profile picture when available */}
+                {chat.participants && chat.participants.length > 0 ? (
+                  chat.participants.length > 1 ? (
+                    <AvatarGroup className="shrink-0">
+                      {chat.participants.slice(0, 3).map((p, i) => (
+                        <Avatar key={`${p.full_name}-${i}`} size="default" className="w-8 h-8">
+                          {p.avatar_url ? (
+                            <AvatarImage src={p.avatar_url} alt={p.full_name} />
+                          ) : (
+                            <AvatarFallback>
+                              {p.full_name
+                                .split(" ")
+                                .map((s) => s[0])
+                                .slice(0, 2)
+                                .join("")}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                      ))}
+                      {chat.participants.length > 3 && (
+                        <AvatarGroupCount>+{chat.participants.length - 3}</AvatarGroupCount>
+                      )}
+                    </AvatarGroup>
                   ) : (
-                    <ShoppingBag size={16} />
-                  )}
-                </div>
+                    <div className="shrink-0">
+                      <Avatar size="default" className="w-10 h-10">
+                        {chat.participants[0].avatar_url ? (
+                          <AvatarImage src={chat.participants[0].avatar_url} alt={chat.participants[0].full_name} />
+                        ) : (
+                          <AvatarFallback>
+                            {chat.participants[0].full_name
+                              .split(" ")
+                              .map((s) => s[0])
+                              .slice(0, 2)
+                              .join("")}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                    </div>
+                  )
+                ) : (
+                  <div className={`
+                    w-10 h-10 rounded-full flex items-center justify-center shrink-0
+                    ${chat.chatType === "GROUP" ? "bg-brand-green text-white shadow-sm ring-1 ring-black/5" : "bg-slate-200 text-black"}
+                  `}>
+                    {chat.chatType === "GROUP" ? (
+                      <Plane size={16} />
+                    ) : (
+                      <ShoppingBag size={16} />
+                    )}
+                  </div>
+                )}
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
