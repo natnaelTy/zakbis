@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { clearAuth } from "@/lib/redux/features/auth/authSlice";
 import Image from "next/image";
-
+import { Button } from "../ui/button";
 
 export function SiteHeader() {
   const router = useRouter();
@@ -53,11 +53,18 @@ export function SiteHeader() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-           <Image src="/zakbislogo.png" alt="Zakbis Logo" width={65} height={65} objectFit="cover" className="p-2"  />
+           <Image
+             src="/zakbislogo.png"
+             alt="Zakbis Logo"
+             width={45}
+             height={45}
+             className="p-2 object-cover"
+             style={{ width: "auto", height: "auto" }}
+           />
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
+        {/* <nav className="hidden md:flex items-center gap-8">
           {["How It Works", "Trust & Safety", "FAQ"].map((item) => (
             <a
               key={item}
@@ -67,7 +74,7 @@ export function SiteHeader() {
               {item}
             </a>
           ))}
-        </nav>
+        </nav> */}
 
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-4" ref={dropdownRef}>
@@ -128,12 +135,10 @@ export function SiteHeader() {
             </div>
           ) : (
             <>
-              <Link href="/auth/login" className="text-sm font-medium text-black hover:text-slate-600 transition-colors">
+              {/* <Link href="/auth/login" className="text-sm font-medium text-black hover:text-slate-600 transition-colors">
                 Log in
-              </Link>
-              <Link href="/auth/signup" className="text-sm font-semibold bg-emerald-700 text-white shadow-md px-6 py-3 rounded-2xl hover:bg-emerald-800 transition-colors">
-                Get Started
-              </Link>
+              </Link> */}
+              <Button> Join the waitlist </Button>
             </>
           )}
         </div>
