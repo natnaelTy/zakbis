@@ -26,10 +26,11 @@ export function TrustSection() {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           
           <div className="relative aspect-[4/5] rounded-3xl overflow-hidden order-last lg:order-first border border-slate-800">
-            <Image 
+            <Image
               src="/trust-woman.png"
               alt="Trusted community"
               fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
               className="object-cover grayscale"
             />
             {/* Overlay gradient */}
