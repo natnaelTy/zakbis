@@ -144,13 +144,13 @@ export function SiteHeader() {
         </div>
 
         {/* Mobile menu toggle */}
-        <button
+        {/* <button
           className="md:hidden p-2 -mr-2 text-black"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        </button> */}
       </div>
 
       {/* Mobile Menu */}
