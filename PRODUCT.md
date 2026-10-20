@@ -27,16 +27,17 @@ This is a structured, escrow-backed version of what already happens informally i
 ## Capabilities and Constraints
 - **Stack:** Next.js App Router with Supabase (database, login, file storage). The schema is in `supabase/migrations/0001_buy_me.sql`. Login is by phone number.
 - **Shipped in English only.** Amharic comes later.
-- **Out of scope:** the triangular sender/traveler/receiver flow, cities other than Addis, in-app chat, tracking, ratings, multi-item orders and insurance.
-- **Still undecided:** service fee (flat or percentage), payout timeframe, and what "verified traveler" means.
+- **Out of scope:** the triangular sender/traveler/receiver flow, cities other than Addis, in-app chat, tracking, multi-item orders and insurance.
+- **Service fee:** Zakbis keeps 9% of the traveler's reward only; the receiver pays item cost + reward.
+- **Still undecided:** payout timeframe, and what "verified traveler" means (the card already shows a verified badge on sample data).
 
 ## Brand Commitments
-- **Name:** Zakbis. The user has a logo, but it's not yet in the repo.
+- **Name:** Zakbis. Logo: `public/company-logo/zakbislogo.png` (green Z mark with a luggage handle and an arrow), shown with the "zakbis" wordmark.
 - **Main brand color:** green.
 - **Voice:** warm and plain. Short sentences and a community feel, with money and safety always stated precisely.
 
 ## Evidence on Hand
-There are no real users, testimonials, delivery counts or ratings yet. Never make them up.
+There are no real users, testimonials, delivery counts, ratings or reviews yet. Never present made-up ones as real: sample ratings and reviews stay visibly labeled as sample until real reviews exist. A traveler's photo stays blurred until the receiver's request is accepted.
 
 ## Product Principles
 1. Trust before transaction: say clearly who holds the money and when it moves.

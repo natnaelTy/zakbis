@@ -28,7 +28,7 @@ A receiver in Addis has found a product online and wants a specific traveler, e.
 2. **Product:**
    - Product link (URL input, paste-friendly).
    - Screenshot (image upload, reusing `components/ui/image-uploader.tsx`).
-   - Both are expected, so both are required.
+   - A link or a screenshot is required; either is enough (changed by the user 2026-10-20). A typed link must be valid.
 3. **Item:**
    - Item name (required).
    - Quantity stepper (min 1).
@@ -60,7 +60,7 @@ Refer to travelers by name ("once Hana accepts"), never by pronoun. Trips have n
 - Use existing components: `Input`, `Textarea`, `Select`, `Field`, `Label`, `Button`, `ImageUploadField`. Note: `ImageUploadField` builds `aspect-[${aspectRatio}/1]` at runtime, which Tailwind can't generate. Fix it with an inline `aspectRatio` style.
 
 ## Validation (my call)
-- Required: link (a valid http(s) URL), screenshot, item name, price > 0, reward > 0.
+- Required: a link (a valid http(s) URL) or a screenshot, item name, price > 0, reward > 0.
 - Errors appear inline under each field on submit, then update live. The button stays enabled; submitting with errors focuses the first invalid field.
 
 ## Left to the builder

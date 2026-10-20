@@ -112,12 +112,12 @@ components:
 
 **Creative North Star: "The Bag Tag"**
 
-Zakbis borrows the airline baggage tag: white card stock, a bright green band printed across the top, three-letter airport codes set huge, and a perforated stub that tears off. Every trip is one tag; the codes are the hierarchy, the band says who is flying and how much room is left, and the stub holds the deadline and the single action. The rest of the interface steps back so the tags are the brightest objects on screen.
+Zakbis borrows the airline baggage tag: white card stock, a bright green band printed across the top, country flags with the city names set big and bold, and a perforated stub that tears off. Every trip is one tag; the route is the hierarchy, the band says who is flying and how much room is left, and the stub holds the deadline and the single action. The rest of the interface steps back so the tags are the brightest objects on screen.
 
 The world is light, cool and calm: an off-white green-grey ground, white reserved for tag stock, near-black green ink, and one loud green used only as a fill. Density is phone-first and generous enough for outdoor reading in bright sun; body text never drops below 16px. Inter carries everything, from 900-weight codes down to quiet 13px stub labels.
 
 **Key Characteristics:**
-- Huge black-weight airport codes (DXB → ADD) as the primary hierarchy.
+- The route as the primary hierarchy: country flag above a semibold city name (Dubai → Addis Ababa). No airport codes on the card.
 - Brand green as a band fill with near-black text, never as text.
 - Asymmetric tag corners (16px top, 6px bottom) and a dashed tear line with side notches.
 - Flat ground; only tags carry a faint shadow and lift on hover.
@@ -156,7 +156,7 @@ A cool off-white world with one saturated green, a darker green for text, and an
 **Character:** A single workhorse grotesque stretched across its whole weight range: 900-weight, tightly tracked codes and wordmark read like airline print, while 400–600 UI text stays plain and warm.
 
 ### Hierarchy
-- **Code** (900, 44px, line-height 1, -0.03em): IATA airport codes on the trip tag only. The destination code takes Forest Text Green.
+- **Route** (600, 18px, line-height 1.375): the origin city on the trip tag. Long names wrap rather than truncate. The destination (always Addis Ababa) is 16px regular Slate Text.
 - **Wordmark** (900, 20px, -0.03em): the lowercase "zakbis" in the header.
 - **Headline** (700, 24px, -0.02em): page titles such as "Trips to Addis".
 - **Body** (400, 16px, line-height 1.5): sentences and city names. 16px is the floor for reading text.
@@ -167,7 +167,7 @@ A cool off-white world with one saturated green, a darker green for text, and an
 - **Tab** (500, 12px): phone tab bar labels under 20px icons.
 
 ### Named Rules
-**The Codes Are the Hierarchy Rule.** On a trip, the airport codes are the largest type. Nothing else on the tag competes with 44px black weight.
+**The Route Is the Hierarchy Rule.** On a trip, the flags and the city names lead. Nothing else on the tag competes with them.
 
 ## Layout
 
@@ -202,18 +202,36 @@ Rounded but purposeful. Pills (9999px) for chips and nav highlights, a gently cu
 - **State:** the selected chip inverts to an Ink fill with Ground text. Hover darkens the border to Ink at 30%.
 
 ### Navigation
-- **Phone:** a five-tab bar fixed to the bottom on Tag Stock with a top hairline. Each tab has a 20px Lucide icon over a 12px label in Slate Text. The active tab turns Forest Text Green, its icon sits in a 48×28px Green Tint pill, and its stroke thickens from 1.75 to 2.25.
-- **Desktop (md+):** the same nav moves inline into the header as a row of pills: 16px icon beside a 14px label, with the active pill filled with Green Tint.
-- **Header:** the lowercase wordmark on the left and a location line (pin icon, "Addis Ababa") in Slate Text on the right, all on the Ground.
+- **Phone:** a five-tab bar fixed to the bottom, 64px tall, on translucent Tag Stock with a top hairline and the safe-area inset. Each tab has a 20px Lucide icon over a 12px label in Slate Text. The active tab turns Forest Text Green, its icon sits in a 48×28px Green Tint pill, and its stroke thickens from 1.75 to 2.25.
+- **Post (phones):** a raised 48px Bag Tag Green circle (Ink plus icon, soft shadow, 4px Tag Stock ring) lifted 20px out of the bar's center, by the user's choice. **Post (desktop):** a regular nav pill like the others.
+- **Sticky bars sit on the tab bar:** form send bars are fixed at exactly 65px (64px bar + hairline) above the bottom, with 16px bottom padding so the raised Post button never overlaps their button.
+- **Desktop (md+):** the same nav moves inline into a sticky header (translucent Ground, backdrop blur, bottom hairline) as a row of pills: 16px icon beside a 14px label, with the active pill filled with Green Tint.
+- **Header:** the logo mark (`zakbislogo.png` via next/image, 26px tall) with the lowercase "zakbis" wordmark on the left, and a location line (pin icon, "Addis Ababa") in Slate Text on the right.
 
 ### Trip Tag (signature)
 The whole tag is one link with one action.
 - **Stock:** Tag Stock, hairline border, 16px/6px corners, tag rest shadow.
 - **Band:** a Bag Tag Green strip, 10px × 16px, with the uppercase traveler and free-kg line on the left and the delivery count or "New traveler" in UI type on the right.
-- **Codes row:** origin code → destination code in Code type, with city names in 16px Slate Text underneath and a muted arrow between them. The destination code is Forest Text Green.
+- **Traveler in the band:** a 28px round traveler photo leads the band, before the caps label. A verified traveler gets the scalloped VerifiedBadge (`components/ui/verified-badge.tsx`, 16px, X-style blue with a white check, by user choice) right after the name; screen readers hear "Verified". It shimmers only on the single trip-page tag, is static in lists, and never animates under reduced motion. Hovering the photo shows a tooltip explaining the blur. The band's right side shows the rating in 14px: a filled Ink star, the rating in weight 600 and "· N reviews", or "New traveler" when there are no reviews. The star line is hidden from screen readers and replaced by "Rated 4.7 out of 5, 3 reviews".
+- **Route row:** origin → destination. Each side is a 48×32px 3:2 SVG country flag (3px corners, Hairline ring, `aria-hidden`, never emoji) above the city name in Route type, with a muted plane icon between, flying toward Addis. The destination side is right-aligned and quiet: every trip ends in Addis, so its city is 16px regular Slate Text. The origin city leads.
 - **Tear line:** a dashed 2px rule with notches cut out on both sides.
 - **Stub:** "Shop by" and "Lands" as Label-over-Body-Strong pairs, then "Request ›" in Forest Text Green, pushed right. On hover the chevron nudges 2px right.
-- **Accessibility:** one aria-label states the full trip and the action.
+- **Accessibility:** one aria-label states the full trip, the rating and the action.
+
+### Traveler Photo
+- **Blur until matched:** the photo is blurred (`blur-md`, scaled 125% inside a circle that clips it) until the receiver's request is accepted, then shown sharp. It has `alt=""` and nothing depends on seeing it.
+- **Say why it's blurred:** on the trip page, a 13px Slate Text caption with an eye-off icon under the tag reads "{name}'s photo is shown once your request is accepted."
+
+### Form Controls
+- **Fields** use shadcn `Field` / `FieldLabel` / `FieldError` / `FieldDescription` (via the shared `Field` in `components/request/item-fields.tsx`), with 16px semibold labels, 16px errors and 13px hints.
+- **Currency** uses shadcn `Select` (Hairline border, card fill, 16px, theme tokens).
+- **Dates** use shadcn `Popover` + `Calendar`: a field-styled trigger with a calendar icon showing "Fri 23 Oct 2026" or "Pick a date"; out-of-range days are disabled; day cells are 40px for phones.
+
+### Reviews List (trip page)
+- **Heading:** "Reviews" in 18px weight 700, with the rating summary in UI type on the right.
+- **Item:** between hairline rules, the author's first name in Body Strong, a row of five stars, filled Ink up to the rating and Hairline after it (screen readers hear "Rated 5 out of 5"), and the date as a 13px Slate Text caption on the right, with the review text in Body below.
+- **Empty:** one Body line in Slate Text saying the traveler has no reviews yet.
+- **Sample data:** until reviews are real, the page states they are sample.
 
 ## Do's and Don'ts
 

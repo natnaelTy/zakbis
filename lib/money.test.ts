@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { etb, normalizeUrl, parseAmount, parseEtb, quote } from "./money.ts";
+import { etb, normalizeUrl, parseAmount, parseEtb, productError, quote } from "./money.ts";
 
 test("spec example: Hana's perfume", () => {
   assert.deepEqual(quote({ unitPrice: 120, quantity: 1, rate: 38.5, reward: 800 }), {
@@ -47,4 +47,12 @@ test("normalizeUrl adds https and rejects non-web links", () => {
 
 test("etb formats whole birr", () => {
   assert.equal(etb(5420), "5,420 ETB");
+});
+
+test("productError: a link or a screenshot is enough", () => {
+  assert.equal(productError("", false), "Add a product link or a screenshot");
+  assert.equal(productError("zara.com/x", false), undefined);
+  assert.equal(productError("", true), undefined);
+  assert.equal(productError("zara.com/x", true), undefined);
+  assert.equal(productError("hello", true), "Check the product link"); // a typed link must still be valid
 });

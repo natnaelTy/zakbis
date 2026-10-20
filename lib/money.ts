@@ -32,3 +32,9 @@ export function parseEtb(raw: string): number | null {
   const n = parseAmount(raw);
   return n && Math.round(n) >= 1 ? Math.round(n) : null;
 }
+
+/** A request needs a product link or a screenshot (either is enough); a link that is typed must be valid. */
+export function productError(link: string, hasScreenshot: boolean): string | undefined {
+  if (link.trim()) return normalizeUrl(link) ? undefined : "Check the product link";
+  return hasScreenshot ? undefined : "Add a product link or a screenshot";
+}
