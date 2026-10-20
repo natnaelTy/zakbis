@@ -1,27 +1,31 @@
-import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
-
-const plusJakarta = Plus_Jakarta_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-inter",
   display: "swap",
-  weight: ["200", "300", "400", "500", "600", "700", "800"],
 });
 
+export const metadata: Metadata = {
+  title: "Zakbis",
+  description: "Shop abroad. Receive in Addis.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f6f8f7",
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={plusJakarta.variable}>
-      <head>
-      </head>
-      <body className="font-sans antialiased">
+    <html lang="en" className={inter.variable}>
+      <body>
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   );
