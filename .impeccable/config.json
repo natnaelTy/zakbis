@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-19T18:40:46.339Z",
+        "reason": "user confirmed: kept Inter as the brand font from their Figma design; pinned in the build brief"
+      }
+    ]
+  }
+}

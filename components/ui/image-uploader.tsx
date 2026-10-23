@@ -21,6 +21,9 @@ interface ImageUploadFieldProps {
   defaultImage?: string;
   isLoading?: boolean;
   maxSize?: number;
+  onReject?: (message: string) => void;
+  id?: string;
+  "aria-describedby"?: string;
 }
 
 export function ImageUploadField({
@@ -36,6 +39,9 @@ export function ImageUploadField({
   defaultImage,
   isLoading = false,
   maxSize = 4 * 1024 * 1024,
+  onReject,
+  id,
+  "aria-describedby": describedBy,
 }: ImageUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -57,8 +63,15 @@ export function ImageUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Add null check before accessing file properties
-    if (file && file.size) {
+    if (!file.type.startsWith("image/")) {
+      e.target.value = "";
+      return onReject?.("Please choose an image");
+    }
+    if (file.size > maxSize) {
+      e.target.value = "";
+      return onReject?.(`Screenshot must be under ${maxSize / 1024 / 1024} MB`);
+    }
+    if (file.size) {
       onChange?.(file);
       onBlur?.();
     }
@@ -72,13 +85,9 @@ export function ImageUploadField({
 
   if (isLoading) {
     return (
-      <Skeleton
-        className={cn(
-          `rounded-lg border-2 border-dashed border-muted`,
-          className,
-          aspectRatio ? `aspect-[${aspectRatio}/1]` : ""
-        )}
-      />
+      <div className={className} style={{ aspectRatio }}>
+        <Skeleton className="size-full rounded-lg border-2 border-dashed border-muted" />
+      </div>
     );
   }
 
@@ -97,15 +106,27 @@ export function ImageUploadField({
       <div
         className={cn(
           "relative overflow-hidden rounded-lg border-2 transition-all",
-          "hover:border-primary/50 cursor-pointer bg-background",
+          "hover:border-ring/50 cursor-pointer bg-card",
           error
             ? "border-destructive hover:border-destructive"
-            : "border-muted",
+            : "border-input",
           disabled && "pointer-events-none opacity-50 cursor-not-allowed",
           previewUrl ? "border-solid" : "border-dashed",
         )}
         style={{ aspectRatio }}
+        id={id}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-invalid={error || undefined}
+        aria-describedby={describedBy}
+        aria-label={previewUrl ? "Change screenshot" : "Add screenshot"}
         onClick={() => !disabled && fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          // Ignore keys bubbling from the nested Remove button, or Enter there opens the picker.
+          if (e.target !== e.currentTarget || disabled || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          fileInputRef.current?.click();
+        }}
       >
         {previewUrl ? (
           <>
@@ -128,12 +149,9 @@ export function ImageUploadField({
                 variant="ghost"
                 size="icon"
                 type="button"
+                aria-label="Remove screenshot"
                 className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log("Remove image");
-                  handleRemove(e);
-                }}
+                onClick={handleRemove}
               >
                 <X className="w-4 h-4 text-foreground/70" />
               </Button>
@@ -144,7 +162,7 @@ export function ImageUploadField({
             <UploadCloud className="w-8 h-8 text-muted-foreground" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">
-                click to upload
+                Click to upload
               </p>
               <p className="text-xs text-muted-foreground">
                 {maxSize
@@ -155,7 +173,7 @@ export function ImageUploadField({
           </div>
         )}
 
-        {error && (
+        {error && previewUrl && (
           <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 text-sm text-destructive bg-destructive/10 rounded-md">
             <AlertCircle className="w-4 h-4" />
             Invalid image
