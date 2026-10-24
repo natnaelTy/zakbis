@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { Field, focusField, invalidProps, ItemRow, PriceField, ProductFields, SendBar, SuccessView, useItemFields, type ItemFieldId } from "@/components/request/item-fields";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
   const [dateOpen, setDateOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [posted, setPosted] = useState(false);
+  const { requireAuth, sheet } = useRequireAuth("Sign in to post your request");
   // The remount removes the focused "Post another" button; put keyboard users back at the start of the form.
   useEffect(() => {
     if (refocus) focusField("countries");
@@ -53,7 +55,7 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
     e.preventDefault();
     setSubmitted(true);
     const first = (["countries", "link", "screenshot", "name", "price", "neededBy"] as const).find((id) => errors[id]);
-    if (!first) return setPosted(true);
+    if (!first) return void requireAuth(() => setPosted(true));
     focusField(first);
   }
 
@@ -169,6 +171,7 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
       </section>
 
       <SendBar note="You won't pay anything until you accept a traveler's offer" label="Post request" />
+      {sheet}
     </form>
   );
 }

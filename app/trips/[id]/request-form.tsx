@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Field, focusField, invalidProps, ItemRow, PriceField, ProductFields, SendBar, SuccessView, useItemFields, type ItemFieldId } from "@/components/request/item-fields";
 import { Input } from "@/components/ui/input";
+import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { etb, parseEtb, quote } from "@/lib/money";
 import { originCurrency, type Trip } from "@/lib/sample-data";
 
@@ -15,6 +16,7 @@ export function RequestForm({ trip }: { trip: Trip }) {
   const [reward, setReward] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [sent, setSent] = useState(false);
+  const { requireAuth, sheet } = useRequireAuth("Sign in to send your request");
 
   const rewardEtb = parseEtb(reward);
   const q = f.itemEtb && f.unitPrice && rewardEtb ? quote({ unitPrice: f.unitPrice, quantity: f.qty, rate: f.rate, reward: rewardEtb }) : null;
@@ -28,7 +30,7 @@ export function RequestForm({ trip }: { trip: Trip }) {
     e.preventDefault();
     setSubmitted(true);
     const first = (["link", "screenshot", "name", "price", "reward"] as const).find((id) => errors[id]);
-    if (!first) return setSent(true);
+    if (!first) return void requireAuth(() => setSent(true));
     focusField(first);
   }
 
@@ -71,6 +73,7 @@ export function RequestForm({ trip }: { trip: Trip }) {
       </section>
 
       <SendBar note={`You won't pay anything until ${name} accepts`} label="Send request" />
+      {sheet}
     </form>
   );
 }

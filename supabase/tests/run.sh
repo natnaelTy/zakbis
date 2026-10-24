@@ -8,7 +8,8 @@ rm -rf "$data"; "$bin/initdb" -D "$data" -U postgres -A trust >/dev/null
 # TCP only: the Unix socket path inside this repo can exceed the 107-byte limit.
 "$bin/pg_ctl" -D "$data" -o "-p $port -k '' -c listen_addresses=127.0.0.1" -l "$data/log" -w start >/dev/null
 trap '"$bin/pg_ctl" -D "$data" -m fast stop >/dev/null; rm -rf "$data"' EXIT
-psql -f "$here/stubs.sql" && psql -f "$root/supabase/migrations/0001_buy_me.sql" || { echo "FAIL migration"; exit 1; }
+psql -f "$here/stubs.sql" || { echo "FAIL stubs"; exit 1; }
+for m in "$root"/supabase/migrations/*.sql; do psql -f "$m" || { echo "FAIL migration $(basename "$m")"; exit 1; }; done
 failed=0
 for t in "$here"/*_test.sql; do
   if out=$(psql -f "$t" 2>&1); then echo "PASS $(basename "$t")"; else echo "FAIL $(basename "$t")"; echo "$out" | tail -5; failed=1; fi
