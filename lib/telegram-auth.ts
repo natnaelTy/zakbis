@@ -33,7 +33,7 @@ export function verifyTelegramLogin(data: Record<string, unknown>, botToken: str
 }
 
 // Re-exported so server code can keep one import; the browser imports ./auth-email directly (no node:crypto).
-export { internalEmail, isInternalEmail, maskEmail } from "./auth-email.ts";
+export { internalEmail, isInternalEmail, maskEmail, safeNextPath } from "./auth-email.ts";
 
 /** Refuses cross-site POSTs (login CSRF / forced linking): the Origin header must be this site. */
 export function isSameOrigin(request: Request) {

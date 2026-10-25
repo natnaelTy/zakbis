@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Field, invalidProps } from "@/components/request/item-fields";
 import { TelegramButton } from "@/components/auth/telegram-button";
+import { GoogleButton } from "@/components/auth/google-button";
 import { createClient } from "@/lib/supabase/client";
 import { isInternalEmail, maskEmail } from "@/lib/auth-email";
 
@@ -101,7 +102,7 @@ export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boo
         <SheetHeader className="px-0">
           <SheetTitle className="text-xl font-bold">{step === "name" ? "What should travelers call you?" : heading}</SheetTitle>
           <SheetDescription className="text-base">
-            {step === "choose" && "Use Telegram, or get a code by email."}
+            {step === "choose" && "Use Telegram or Google, or get a code by email."}
             {step === "code" && `We sent a code to ${maskEmail(email.trim())}`}
             {step === "name" && "Only your first name is shown to others."}
           </SheetDescription>
@@ -110,6 +111,7 @@ export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boo
         {step === "choose" && (
           <div className="space-y-4">
             <TelegramButton onAuth={onTelegram} />
+            <GoogleButton onSignedIn={(firstName) => afterSignIn(firstName)} onError={setError} />
             <div className="flex items-center gap-3 text-sm text-muted-foreground" aria-hidden>
               <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
             </div>

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
-import { internalEmail, isInternalEmail, isSameOrigin, maskEmail, verifyTelegramLogin } from "./telegram-auth.ts";
+import { internalEmail, isInternalEmail, isSameOrigin, maskEmail, safeNextPath, verifyTelegramLogin } from "./telegram-auth.ts";
 
 // Signs fields the way Telegram's Login Widget does, so tests can produce valid and invalid payloads.
 function sign(fields: Record<string, string | number>, token: string) {
@@ -35,4 +35,10 @@ test("same-origin check", () => {
   assert.equal(isSameOrigin(req("https://evil.example")), false);
   assert.equal(isSameOrigin(req("https://app.zakbis.com.evil.example")), false);
   assert.equal(isSameOrigin(req(null)), false);
+});
+
+test("safeNextPath keeps redirects on this site", () => {
+  assert.equal(safeNextPath("/profile"), "/profile");
+  assert.equal(safeNextPath("/trips/t1?x=1"), "/trips/t1?x=1");
+  for (const bad of [null, "", "https://evil.example", "//evil.example", "/\\evil.example", "\\\\evil.example"]) assert.equal(safeNextPath(bad), "/", String(bad));
 });

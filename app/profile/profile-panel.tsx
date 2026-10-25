@@ -48,6 +48,16 @@ export function ProfilePanel() {
 
   const hasTelegram = typeof user.app_metadata?.telegram_id === "number";
   const realEmail = user.email && !isInternalEmail(user.email) ? user.email : null;
+  const hasGoogle = !!user.identities?.some((i) => i.provider === "google");
+
+  async function connectGoogle() {
+    // Redirects to Google and back to /auth/callback; fine here, there's no form to lose.
+    const { error } = await createClient().auth.linkIdentity({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/profile` },
+    });
+    if (error) setMessage(/already|exists|linked/i.test(error.message) ? "This Google account already has its own Zakbis account. Sign in with it instead." : "Couldn't connect Google. Please try again.");
+  }
 
   async function saveName(e: React.FormEvent) {
     e.preventDefault();
@@ -103,6 +113,19 @@ export function ProfilePanel() {
               <p className="text-base text-muted-foreground">Connect Telegram to sign in with it on any device.</p>
               <TelegramButton onAuth={connectTelegram} />
             </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-4">
+          <p className="font-semibold">Google</p>
+          {hasGoogle ? (
+            <p className="mt-1 flex items-center gap-1.5 text-base text-brand-text">
+              <Check aria-hidden className="size-4" /> Connected
+            </p>
+          ) : (
+            <Button variant="outline" className="mt-3 h-11 rounded-lg px-5 text-base font-semibold" onClick={connectGoogle}>
+              Connect Google
+            </Button>
           )}
         </div>
 
