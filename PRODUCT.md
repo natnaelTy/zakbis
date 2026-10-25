@@ -25,7 +25,7 @@ This is a structured, escrow-backed version of what already happens informally i
 - **Handover** happens in Addis Ababa only.
 
 ## Capabilities and Constraints
-- **Stack:** Next.js App Router with Supabase (database, login, file storage). The schema is in `supabase/migrations/0001_buy_me.sql`. Login is by phone number.
+- **Stack:** Next.js App Router with Supabase (database, login, file storage). The schema is in `supabase/migrations/0001_buy_me.sql`. Login is by Telegram, Google or a 6-digit email code, linkable to one account; a phone number is verified once by SMS (AfroMessage) at the payment and landing steps.
 - **Shipped in English only.** Amharic comes later.
 - **Out of scope:** the triangular sender/traveler/receiver flow, cities other than Addis, in-app chat, tracking, multi-item orders and insurance.
 - **Service fee:** Zakbis keeps 9% of the traveler's reward only; the receiver pays item cost + reward.
