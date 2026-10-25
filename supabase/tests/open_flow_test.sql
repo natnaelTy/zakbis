@@ -31,6 +31,12 @@ insert into trips (id, traveler_id, origin_country, origin_city, origin_airport,
   ('10000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-0000000000c4', 'US', 'Washington, DC', 'IAD', addis_today() + 4, addis_today() + 6, 5);
 
 -- Receiver posts an open request, trying to set a reward.
+-- Travelers must be verified to be listed, offer or receive trip requests.
+select test_verify('00000000-0000-0000-0000-0000000000c1');
+select test_verify('00000000-0000-0000-0000-0000000000c2');
+select test_verify('00000000-0000-0000-0000-0000000000c3');
+select test_verify('00000000-0000-0000-0000-0000000000c4');
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 insert into requests (id, kind, countries, needed_by, item_name, item_url, unit_price, currency, reward_etb) values

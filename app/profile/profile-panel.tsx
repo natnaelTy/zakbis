@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/request/item-fields";
 import { TelegramButton } from "@/components/auth/telegram-button";
+import { VerificationStatus } from "@/components/traveler/verification-status";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import { isInternalEmail, maskEmail } from "@/lib/auth-email";
@@ -96,6 +97,8 @@ export function ProfilePanel() {
         </Button>
       </form>
 
+      <VerificationStatus />
+
       <section aria-labelledby="signin-methods" className="space-y-4">
         <h2 id="signin-methods" className="text-lg font-bold">
           Ways to sign in
@@ -140,6 +143,13 @@ export function ProfilePanel() {
           </p>
         )}
       </section>
+
+      <p className="text-[13px] text-muted-foreground">
+        Your account ID: <code className="select-all break-all">{user.id}</code>{" "}
+        <button type="button" className="font-semibold text-brand-text" onClick={() => navigator.clipboard?.writeText(user.id)}>
+          Copy
+        </button>
+      </p>
 
       <Button variant="ghost" className="h-11 px-0 text-base font-semibold text-destructive hover:bg-transparent" onClick={signOut}>
         Sign out

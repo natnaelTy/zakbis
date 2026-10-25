@@ -21,6 +21,9 @@ insert into profiles (id, first_name) values
 insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
 insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6);
+-- Travelers must be verified to be listed, offer or receive trip requests.
+select test_verify('00000000-0000-0000-0000-0000000000c1');
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 insert into requests (id, kind, trip_id, item_name, item_url, unit_price, currency, reward_etb) values

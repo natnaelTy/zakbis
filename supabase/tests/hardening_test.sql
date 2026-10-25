@@ -26,6 +26,9 @@ insert into trips (id, traveler_id, origin_country, origin_city, origin_airport,
 insert into payout_accounts values ('00000000-0000-0000-0000-0000000000c1', 'telebirr', 'Hana', '0922000002', null);
 
 -- I1: an offer whose trip has gone stale can't be accepted; neither can a trip request on a stale trip.
+-- Travelers must be verified to be listed, offer or receive trip requests.
+select test_verify('00000000-0000-0000-0000-0000000000c1');
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 insert into requests (id, kind, countries, needed_by, item_name, item_url, unit_price, currency) values

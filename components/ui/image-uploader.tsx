@@ -24,6 +24,11 @@ interface ImageUploadFieldProps {
   onReject?: (message: string) => void;
   id?: string;
   "aria-describedby"?: string;
+  capture?: "user" | "environment";
+  /** Accessible name of what is uploaded, e.g. "passport photo". */
+  label?: string;
+  /** Exact MIME types allowed (checked on selection, so storage never rejects later). Default: any image. */
+  acceptTypes?: string[];
 }
 
 export function ImageUploadField({
@@ -42,6 +47,9 @@ export function ImageUploadField({
   onReject,
   id,
   "aria-describedby": describedBy,
+  capture,
+  label = "screenshot",
+  acceptTypes,
 }: ImageUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -63,13 +71,14 @@ export function ImageUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (acceptTypes ? !acceptTypes.includes(file.type) : !file.type.startsWith("image/")) {
       e.target.value = "";
-      return onReject?.("Please choose an image");
+      const names = acceptTypes?.map((t) => t.split("/")[1].replace("jpeg", "JPG").replace(/^(png|webp)$/, (x) => (x === "png" ? "PNG" : "WebP")));
+      return onReject?.(names ? `Use a ${names.slice(0, -1).join(", ")} or ${names.at(-1)} photo` : "Please choose an image");
     }
     if (file.size > maxSize) {
       e.target.value = "";
-      return onReject?.(`Screenshot must be under ${maxSize / 1024 / 1024} MB`);
+      return onReject?.(`Image must be under ${maxSize / 1024 / 1024} MB`);
     }
     if (file.size) {
       onChange?.(file);
@@ -95,7 +104,8 @@ export function ImageUploadField({
     <div className={cn("group relative", className)}>
       <Input
         type="file"
-        accept="image/*"
+        accept={acceptTypes?.join(",") ?? "image/*"}
+        capture={capture}
         className="hidden"
         ref={fileInputRef}
         onChange={handleFileChange}
@@ -119,7 +129,7 @@ export function ImageUploadField({
         tabIndex={disabled ? -1 : 0}
         aria-invalid={error || undefined}
         aria-describedby={describedBy}
-        aria-label={previewUrl ? "Change screenshot" : "Add screenshot"}
+        aria-label={`${previewUrl ? "Change" : "Add"} ${label}`}
         onClick={() => !disabled && fileInputRef.current?.click()}
         onKeyDown={(e) => {
           // Ignore keys bubbling from the nested Remove button, or Enter there opens the picker.
@@ -149,7 +159,7 @@ export function ImageUploadField({
                 variant="ghost"
                 size="icon"
                 type="button"
-                aria-label="Remove screenshot"
+                aria-label={`Remove ${label}`}
                 className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
                 onClick={handleRemove}
               >

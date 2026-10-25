@@ -10,6 +10,7 @@ rm -rf "$data"; "$bin/initdb" -D "$data" -U postgres -A trust >/dev/null
 trap '"$bin/pg_ctl" -D "$data" -m fast stop >/dev/null; rm -rf "$data"' EXIT
 psql -f "$here/stubs.sql" || { echo "FAIL stubs"; exit 1; }
 for m in "$root"/supabase/migrations/*.sql; do psql -f "$m" || { echo "FAIL migration $(basename "$m")"; exit 1; }; done
+psql -f "$here/helpers.sql" || { echo "FAIL helpers"; exit 1; }
 failed=0
 for t in "$here"/*_test.sql; do
   if out=$(psql -f "$t" 2>&1); then echo "PASS $(basename "$t")"; else echo "FAIL $(basename "$t")"; echo "$out" | tail -5; failed=1; fi

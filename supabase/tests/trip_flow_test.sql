@@ -30,6 +30,9 @@ insert into trips (id, traveler_id, origin_country, origin_city, origin_airport,
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6);
 
 -- Receiver posts trip requests, trying to spoof status, receiver and rate.
+-- Travelers must be verified to be listed, offer or receive trip requests.
+select test_verify('00000000-0000-0000-0000-0000000000c1');
+
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 insert into requests (id, kind, trip_id, item_name, item_url, unit_price, currency, reward_etb, status, receiver_id, fx_rate) values
