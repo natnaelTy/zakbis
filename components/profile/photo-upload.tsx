@@ -26,10 +26,14 @@ export function PhotoUpload({ side }: { side: Side }) {
       const supabase = createClient();
       const { data } = await supabase.auth.getUser();
       if (!data.user) return;
-      const { data: p } = await supabase.from("profiles").select("receiver_photo_path, photo_path").eq("id", data.user.id).maybeSingle();
-      if (side === "receiver" && p?.receiver_photo_path)
-        setCurrent(receiverPhotoSrc(p.receiver_photo_path, (path) => supabase.storage.from("receiver-photos").getPublicUrl(path).data.publicUrl));
-      if (side === "traveler" && p?.photo_path) setCurrent((await supabase.storage.from("photos").createSignedUrl(p.photo_path, 3600)).data?.signedUrl ?? null);
+      // photo_path is a private column: selecting it alongside anything fails the whole read, so the traveler side asks my_photo_path().
+      if (side === "receiver") {
+        const { data: p } = await supabase.from("profiles").select("receiver_photo_path").eq("id", data.user.id).maybeSingle();
+        if (p?.receiver_photo_path) setCurrent(receiverPhotoSrc(p.receiver_photo_path, (path) => supabase.storage.from("receiver-photos").getPublicUrl(path).data.publicUrl));
+      } else {
+        const { data: path } = await supabase.rpc("my_photo_path");
+        if (path) setCurrent((await supabase.storage.from("photos").createSignedUrl(path, 3600)).data?.signedUrl ?? null);
+      }
     })();
   }, [side]);
 
