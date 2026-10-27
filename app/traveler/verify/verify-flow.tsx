@@ -10,12 +10,13 @@ import { ImageUploadField } from "@/components/ui/image-uploader";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Field, invalidProps } from "@/components/request/item-fields";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { VerificationStatus } from "@/components/traveler/verification-status";
 import { createClient } from "@/lib/supabase/client";
 import { addisToday } from "@/lib/open-requests";
+import { payoutErrors, type Payout } from "@/lib/account";
+import { PayoutFields } from "@/components/traveler/payout-fields";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]; // what the identity bucket accepts
@@ -37,7 +38,6 @@ function nationalities() {
 }
 
 type Step = 0 | 1 | 2 | 3 | 4;
-type Payout = { method: "telebirr" | "bank"; account_name: string; account_number: string; bank_name: string };
 
 export function VerifyFlow() {
   const countries = useMemo(nationalities, []);
@@ -103,9 +103,7 @@ export function VerifyFlow() {
     }
     if (s === 2 && !selfie) e.selfie = "Add a selfie holding your open passport";
     if (s === 3) {
-      if (!payout.account_name.trim()) e.accountName = "Enter the account holder's name";
-      if (!/^\+?[0-9 ]{6,20}$/.test(payout.account_number.trim())) e.accountNumber = payout.method === "telebirr" ? "Enter your Telebirr phone number" : "Enter the account number";
-      if (payout.method === "bank" && !payout.bank_name.trim()) e.bankName = "Enter the bank name";
+      Object.assign(e, payoutErrors(payout));
     }
     setErrors(e);
     const first = Object.keys(e)[0];
@@ -254,33 +252,7 @@ export function VerifyFlow() {
         </Field>
       )}
 
-      {step === 3 && (
-        <section className="space-y-4">
-          <div className="space-y-2">
-            <p id="payout-method-label" className="text-base font-semibold">
-              Get paid with
-            </p>
-            <ToggleGroup value={[payout.method]} onValueChange={(v) => v[0] && setPayout({ ...payout, method: v[0] as Payout["method"] })} aria-labelledby="payout-method-label">
-              {(["telebirr", "bank"] as const).map((m) => (
-                <ToggleGroupItem key={m} value={m} variant="outline" className="h-auto rounded-full bg-card px-4 py-2 text-base font-medium aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background aria-pressed:hover:bg-foreground">
-                  {m === "telebirr" ? "Telebirr" : "Bank account"}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-          {payout.method === "bank" && (
-            <Field id="bankName" label="Bank" error={errors.bankName}>
-              <Input id="bankName" placeholder="Commercial Bank of Ethiopia" value={payout.bank_name} onChange={(e) => setPayout({ ...payout, bank_name: e.target.value })} {...invalidProps(errors.bankName, "bankName")} />
-            </Field>
-          )}
-          <Field id="accountName" label="Account holder's name" hint="Should match your passport name." error={errors.accountName}>
-            <Input id="accountName" value={payout.account_name} onChange={(e) => setPayout({ ...payout, account_name: e.target.value })} {...invalidProps(errors.accountName, "accountName")} />
-          </Field>
-          <Field id="accountNumber" label={payout.method === "telebirr" ? "Telebirr number" : "Account number"} error={errors.accountNumber}>
-            <Input id="accountNumber" inputMode="numeric" value={payout.account_number} onChange={(e) => setPayout({ ...payout, account_number: e.target.value })} {...invalidProps(errors.accountNumber, "accountNumber")} />
-          </Field>
-        </section>
-      )}
+      {step === 3 && <PayoutFields value={payout} onChange={setPayout} errors={errors} />}
 
       {step === 4 && (
         <section className="space-y-3 rounded-xl border bg-card p-4 text-base">

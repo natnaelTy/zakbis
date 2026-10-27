@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BadgeCheck, Clock, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { addisToday } from "@/lib/open-requests";
 
 export type Verification = { status: "pending" | "approved" | "rejected"; rejection_reason: string | null; passport_expiry: string } | null;
 
@@ -24,6 +25,7 @@ export function VerificationStatus({ verification }: { verification?: Verificati
     if (verification === undefined) loadMyVerification().then(setV);
   }, [verification]);
   if (v === undefined) return null;
+  const expired = v?.status === "approved" && v.passport_expiry < addisToday(new Date());
 
   return (
     <section aria-labelledby="traveler-status" className="rounded-xl border bg-card p-4">
@@ -41,13 +43,24 @@ export function VerificationStatus({ verification }: { verification?: Verificati
       {v?.status === "pending" && (
         <p className="mt-1 flex gap-2 text-base">
           <Clock aria-hidden className="mt-1 size-4 shrink-0 text-warning" />
-          We&apos;re checking your documents. You can prepare trips, but they&apos;ll stay hidden until you&apos;re approved.
+          We&apos;re still checking your documents. You can post trips once you&apos;re approved.
         </p>
       )}
-      {v?.status === "approved" && (
+      {v?.status === "approved" && !expired && (
         <p className="mt-1 flex items-center gap-2 text-base text-brand-text">
           <BadgeCheck aria-hidden className="size-4 shrink-0" /> You&apos;re a verified traveler.
         </p>
+      )}
+      {expired && (
+        <>
+          <p className="mt-1 flex gap-2 text-base">
+            <ShieldAlert aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
+            Your passport has expired.
+          </p>
+          <Link href="/traveler/verify" className={linkClass}>
+            Renew verification
+          </Link>
+        </>
       )}
       {v?.status === "rejected" && (
         <>

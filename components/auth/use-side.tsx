@@ -30,12 +30,16 @@ export function useSide() {
   return { side, refresh };
 }
 
-export async function switchSide(to: Side): Promise<boolean> {
+/** Writes the caller's profile row, creating it if the account closed sign-in before picking a side. */
+export async function saveProfile(fields: { active_side?: Side; first_name?: string; receiver_photo_path?: string }): Promise<boolean> {
   const supabase = createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) return false;
-  const { data: updated, error } = await supabase.from("profiles").update({ active_side: to }).eq("id", data.user.id).select("id");
-  if (error || !updated?.length) return false;
-  notifySideChanged();
+  const { data: updated, error } = await supabase.from("profiles").update(fields).eq("id", data.user.id).select("id");
+  if (error) return false;
+  if (!updated?.length && (await supabase.from("profiles").insert({ id: data.user.id, ...fields })).error) return false;
+  if (fields.active_side) notifySideChanged();
   return true;
 }
+
+export const switchSide = (to: Side) => saveProfile({ active_side: to });

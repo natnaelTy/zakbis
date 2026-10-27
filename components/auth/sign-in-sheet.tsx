@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isInternalEmail, maskEmail } from "@/lib/auth-email";
 import type { Side } from "@/lib/sides";
 import { isProviderPhoto } from "@/lib/photos";
-import { notifySideChanged } from "@/components/auth/use-side";
+import { notifySideChanged, saveProfile } from "@/components/auth/use-side";
 
 type Step = "choose" | "code" | "side" | "name";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -67,17 +67,6 @@ export function SignInSheet({
     setStep("side");
   }
 
-  /** Writes the caller's profile row, creating it if this is a new account. */
-  async function saveProfile(fields: { active_side: Side; first_name?: string; receiver_photo_path?: string }) {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return false;
-    const { data: updated, error } = await supabase.from("profiles").update(fields).eq("id", data.user.id).select("id");
-    if (error) return false;
-    if (updated?.length) return true;
-    return !(await supabase.from("profiles").insert({ id: data.user.id, ...fields })).error;
-  }
-
   async function pickSide(side: Side) {
     setError(undefined);
     if (side === "receiver") return setStep("name");
@@ -85,7 +74,6 @@ export function SignInSheet({
     const ok = await saveProfile({ active_side: "traveler" });
     setBusy(false);
     if (!ok) return setError("Couldn't save your choice. Please try again.");
-    notifySideChanged();
     onDone("traveler", true);
   }
 
@@ -132,7 +120,6 @@ export function SignInSheet({
     const ok = await saveProfile({ active_side: "receiver", first_name: first, ...(photoUrl && isProviderPhoto(photoUrl) && { receiver_photo_path: photoUrl }) });
     setBusy(false);
     if (!ok) return setError("Couldn't save your name. Please try again.");
-    notifySideChanged();
     onDone("receiver", true);
   }
 
