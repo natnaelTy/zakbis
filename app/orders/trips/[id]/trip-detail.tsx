@@ -31,6 +31,7 @@ export function TripDetail({ id }: { id: string }) {
     if (error) return setFailed(true);
     setTrip(((data as MyTrip[] | null) ?? []).find((t) => t.id === id) ?? null);
     setMode("view");
+    setMessage(undefined); // a message belongs to the action that set it, not to the reloaded trip
   }, [id]);
   useEffect(() => void load(), [load]);
 
