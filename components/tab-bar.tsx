@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Compass, Inbox, Package, Plus, User } from "lucide-react";
+import { Add, Box, Compass, Inbox, User } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { useSide } from "@/components/auth/use-side";
 import { tabsFor, type TabLabel } from "@/lib/sides";
 import { cn } from "@/lib/utils";
 
-const icons = { Explore: Compass, Orders: Package, Post: Plus, Inbox, Profile: User };
+const icons = { Explore: Compass, Orders: Box, Post: Add, Inbox, Profile: User };
 
 /** The active side's tabs; nothing while loading or signed out (the header shows Sign in instead). */
 export function TabBar({ active }: { active: TabLabel }) {
@@ -43,7 +43,7 @@ export function TabBar({ active }: { active: TabLabel }) {
                     isPost && "-mt-5 size-12 w-12 bg-primary text-primary-foreground shadow-[0_4px_12px_rgb(20_36_29/0.18)] ring-4 ring-card md:mt-0 md:size-auto md:bg-transparent md:text-current md:shadow-none md:ring-0",
                   )}
                 >
-                  <Icon aria-hidden className={cn("size-5 md:size-4", isPost && "size-6 md:size-4")} strokeWidth={current || isPost ? 2.25 : 1.75} />
+                  <Icon aria-hidden className={cn("size-5 md:size-4", isPost && "size-6 md:size-4")} />
                 </span>
                 {label}
               </Link>

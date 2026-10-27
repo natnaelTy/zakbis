@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Check } from "lucide-react";
+import { CheckCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/request/item-fields";
@@ -63,11 +63,10 @@ export function SignInPanel() {
         <p className="font-semibold">Telegram</p>
         {hasTelegram ? (
           <p className="mt-1 flex items-center gap-1.5 text-base text-brand-text">
-            <Check aria-hidden className="size-4" /> Connected
+            <CheckCircle aria-hidden className="size-4" /> Connected
           </p>
         ) : (
           <div className="mt-3 space-y-2">
-            <p className="text-base text-muted-foreground">Connect Telegram to sign in with it on any device.</p>
             <TelegramButton onAuth={connectTelegram} />
           </div>
         )}
@@ -77,7 +76,7 @@ export function SignInPanel() {
         <p className="font-semibold">Google</p>
         {hasGoogle ? (
           <p className="mt-1 flex items-center gap-1.5 text-base text-brand-text">
-            <Check aria-hidden className="size-4" /> Connected
+            <CheckCircle aria-hidden className="size-4" /> Connected
           </p>
         ) : (
           <Button variant="outline" className="mt-3 h-11 rounded-lg px-5 text-base font-semibold" onClick={connectGoogle}>
@@ -127,7 +126,7 @@ function AddEmail({ onAdded, onTaken }: { onAdded: () => void; onTaken: () => vo
   if (!sent)
     return (
       <form onSubmit={send} noValidate className="mt-3 space-y-3">
-        <Field id="add-email" label="Add an email" hint="Then you can also sign in with an email code." error={error}>
+        <Field id="add-email" label="Add an email" error={error}>
           <Input id="add-email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Button type="submit" variant="outline" className="h-11 rounded-lg px-5 text-base font-semibold">

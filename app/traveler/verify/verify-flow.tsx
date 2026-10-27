@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, addYears, format, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { ImageUploadField } from "@/components/ui/image-uploader";
@@ -188,7 +188,6 @@ export function VerifyFlow() {
             <li>A selfie holding your open passport</li>
             <li>Where to send your payouts (Telebirr or bank)</li>
           </ul>
-          <p className="text-muted-foreground">It takes about 3 minutes. An admin reviews it, then your trips become visible.</p>
         </section>
       )}
 
@@ -247,7 +246,7 @@ export function VerifyFlow() {
       )}
 
       {step === 2 && (
-        <Field id="selfie" label="Selfie holding your open passport" hint="Hold the photo page next to your face, in good light." error={fileError ?? errors.selfie}>
+        <Field id="selfie" label="Selfie holding your open passport" error={fileError ?? errors.selfie}>
           <ImageUploadField id="selfie" label="selfie" acceptTypes={IMAGE_TYPES} aria-describedby={fileError ?? errors.selfie ? "selfie-error" : undefined} capture="user" aspectRatio={0.8} maxSize={MAX_BYTES} value={selfie} error={!!(fileError ?? errors.selfie)} onChange={(f) => (setSelfie(f instanceof File ? f : null), setFileError(undefined))} onReject={setFileError} />
         </Field>
       )}
@@ -268,7 +267,6 @@ export function VerifyFlow() {
               {payout.method === "telebirr" ? "Telebirr" : payout.bank_name} · {payout.account_number}
             </dd>
           </dl>
-          <p className="text-muted-foreground">Only Zakbis staff see your passport and selfie.</p>
         </section>
       )}
 

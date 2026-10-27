@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { ShieldAlert } from "lucide-react";
+import { ShieldWarning } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,7 +99,7 @@ export function TripDetail({ id }: { id: string }) {
 
       {t.status === "needs_fix" && (
         <p className="mt-4 flex gap-2 rounded-xl border bg-card p-4 text-base">
-          <ShieldAlert aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
+          <ShieldWarning aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
           We couldn&apos;t approve this trip: {t.rejection_reason}
         </p>
       )}

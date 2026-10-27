@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPoint } from "@/components/icons";
 import logo from "@/public/company-logo/zakbislogo.png";
 import type { TabLabel } from "@/lib/sides";
 import { HeaderSignIn, TabBar } from "@/components/tab-bar";
@@ -19,7 +19,7 @@ export function AppShell({ active, children }: { active: TabLabel; children: Rea
         <TabBar active={active} />
 
         <span className="ml-auto flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
-          <MapPin aria-hidden className="size-4" /> Addis Ababa
+          <MapPoint aria-hidden className="size-4" /> Addis Ababa
         </span>
         <HeaderSignIn />
       </header>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { BadgeCheck, ChevronRight, KeyRound, LifeBuoy, LogOut, User as UserIcon, Wallet } from "lucide-react";
+import { ArrowRight, Key, Logout, QuestionCircle, User as UserIcon, VerifiedCheck, Wallet } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, invalidProps } from "@/components/request/item-fields";
@@ -161,7 +161,7 @@ export function ProfilePanel() {
             <span className={`block truncate text-xl font-bold ${shownName === "Not verified yet" ? "text-muted-foreground" : ""}`}>{shownName}</span>
             <span className="text-sm font-medium text-brand-text">Edit profile</span>
           </span>
-          <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+          <ArrowRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       ) : (
         <div className="mt-5 flex items-center gap-4 border-b pb-5">
@@ -173,14 +173,14 @@ export function ProfilePanel() {
       <nav aria-label="Account settings" className="mt-2">
         {side === "traveler" && (
           <>
-            <SettingsRow href="/profile/verification" icon={BadgeCheck} label="Verification" status={label?.text} tone={label?.tone} />
+            <SettingsRow href="/profile/verification" icon={VerifiedCheck} label="Verification" status={label?.text} tone={label?.tone} />
             <SettingsRow href="/profile/payout" icon={Wallet} label="Payout method" status={a.payout ?? undefined} />
           </>
         )}
-        <SettingsRow href="/profile/sign-in" icon={KeyRound} label="Ways to sign in" />
-        {SUPPORT_EMAIL && <SettingsRow href={`mailto:${SUPPORT_EMAIL}`} icon={LifeBuoy} label="Help & support" />}
+        <SettingsRow href="/profile/sign-in" icon={Key} label="Ways to sign in" />
+        {SUPPORT_EMAIL && <SettingsRow href={`mailto:${SUPPORT_EMAIL}`} icon={QuestionCircle} label="Help & support" />}
         <div className="mt-6">
-          <SettingsRow onClick={signOut} icon={LogOut} label="Sign out" destructive />
+          <SettingsRow onClick={signOut} icon={Logout} label="Sign out" destructive />
         </div>
       </nav>
     </div>

@@ -65,7 +65,7 @@ export function EditPanel() {
     <div className="mt-6 space-y-8">
       {side === "receiver" ? (
         <form onSubmit={saveName} noValidate className="space-y-3">
-          <Field id="profile-name" label="First name" hint="Only your first name is shown to others." error={status === "saved" ? undefined : status}>
+          <Field id="profile-name" label="First name" error={status === "saved" ? undefined : status}>
             <Input id="profile-name" autoComplete="given-name" maxLength={40} value={name} onChange={(e) => (setName(e.target.value), setStatus(undefined))} />
           </Field>
           <Button type="submit" variant="outline" className="h-11 rounded-lg px-5 text-base font-semibold">

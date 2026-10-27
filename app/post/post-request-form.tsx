@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Field, focusField, invalidProps, ItemRow, PriceField, ProductFields, SendBar, SuccessView, useItemFields, type ItemFieldId } from "@/components/request/item-fields";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "@/components/icons";
 import { Calendar } from "@/components/ui/calendar";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -110,9 +110,7 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
           <p id="countries-error" role="alert" className="text-base text-destructive">
             {show("countries")}
           </p>
-        ) : (
-          <p className="text-[13px] text-muted-foreground">Pick every country it could come from.</p>
-        )}
+        ) : null}
       </section>
 
       <ProductFields f={f} show={show} />
@@ -123,13 +121,12 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
           f={f}
           show={show}
           rateNote="post"
-          hint="Travelers name their reward when they offer. You only pay once you accept an offer."
           onCurrencyChange={(c: Currency) => {
             setCurrencyTouched(true);
             f.setCurrency(c);
           }}
         />
-        <Field id="neededBy" label="Needed by" hint="Only travelers landing in Addis by this date will see it." error={show("neededBy")}>
+        <Field id="neededBy" label="Needed by" error={show("neededBy")}>
           <Popover open={dateOpen} onOpenChange={setDateOpen}>
             <PopoverTrigger
               id="neededBy"

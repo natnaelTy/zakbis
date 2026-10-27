@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CircleCheck, Lock, Minus, Plus } from "lucide-react";
+import { Add, CheckCircle, LockKeyhole, Minus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ImageUploadField } from "@/components/ui/image-uploader";
 import { Input } from "@/components/ui/input";
@@ -70,10 +70,10 @@ export function ProductFields({ f, show, travelerName }: { f: ItemFieldsState; s
   return (
     <section className="space-y-4">
       <h2 className="text-lg font-bold">The product</h2>
-      <Field id="link" label="Product link" hint="A link, a screenshot, or both." error={show("link")}>
+      <Field id="link" label="Product link" error={show("link")}>
         <Input id="link" type="url" inputMode="url" autoComplete="off" placeholder="https://" value={f.link} onChange={(e) => f.setLink(e.target.value)} {...invalidProps(show("link"), "link")} />
       </Field>
-      <Field id="screenshot" label="Screenshot" hint={`So ${travelerName ?? "the traveler"} buys exactly the right one.`} error={show("screenshot")}>
+      <Field id="screenshot" label="Screenshot" error={show("screenshot")}>
         <ImageUploadField
           id="screenshot"
           aria-describedby={show("screenshot") ? "screenshot-error" : undefined}
@@ -102,7 +102,7 @@ export function ProductFields({ f, show, travelerName }: { f: ItemFieldsState; s
             {f.qty}
           </output>
           <Button type="button" variant="ghost" size="icon" aria-label="Increase quantity" disabled={f.qty >= 10} onClick={() => f.setQty(f.qty + 1)}>
-            <Plus aria-hidden className="size-4" />
+            <Add aria-hidden className="size-4" />
           </Button>
         </div>
       </div>
@@ -148,7 +148,7 @@ export function PriceField({
         {f.qty > 1 && <span className="text-muted-foreground"> for {f.qty}</span>}
       </p>
       <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <Lock aria-hidden className="size-3.5" /> 1 {f.currency} = {f.rate.toFixed(2)} ETB · locked when you {rateNote}
+        <LockKeyhole aria-hidden className="size-3.5" /> 1 {f.currency} = {f.rate.toFixed(2)} ETB · locked when you {rateNote}
       </p>
       {hint && <p className="text-base text-muted-foreground">{hint}</p>}
     </Field>
@@ -192,7 +192,7 @@ export function SuccessView({ heading, file, item, qty, amountLine, children }: 
 
   return (
     <section className="mt-8 text-center">
-      <CircleCheck aria-hidden className="mx-auto size-12 text-brand-text" strokeWidth={1.75} />
+      <CheckCircle aria-hidden className="mx-auto size-12 text-brand-text" />
       <h2 ref={ref} tabIndex={-1} className="mt-3 text-2xl font-bold outline-none">
         {heading}
       </h2>

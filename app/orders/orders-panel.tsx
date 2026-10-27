@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { ChevronRight } from "lucide-react";
+import { ArrowRight } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { useSide } from "@/components/auth/use-side";
@@ -93,7 +93,7 @@ export function OrdersPanel() {
                   </span>
                 </span>
                 <StatusPill status={t.status} />
-                <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+                <ArrowRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />
               </Link>
             </li>
           ))}

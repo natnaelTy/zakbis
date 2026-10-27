@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plane } from "lucide-react";
+import { Plane } from "@/components/icons";
 import { AppShell } from "@/components/app-shell";
 import { TripTag } from "@/components/trip-tag";
 import { trips } from "@/lib/sample-data";
@@ -23,7 +23,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <main className="px-4 md:px-0">
         <div className="flex items-baseline justify-between pt-2">
           <h1 className="text-2xl font-bold tracking-[-0.02em]">Trips to Addis</h1>
-          <p className="text-sm text-muted-foreground">{shown.length} upcoming · sample data</p>
         </div>
 
         <nav aria-label="Filter by origin" className="-mx-4 mt-3 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
@@ -58,7 +57,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </ul>
         ) : (
           <div className="mt-12 flex flex-col items-center px-6 text-center">
-            <Plane aria-hidden className="size-10 text-muted-foreground" strokeWidth={1.5} />
+            <Plane aria-hidden className="size-10 text-muted-foreground" />
             <p className="mt-4 font-semibold">No trips from {selected.label} yet</p>
             <p className="mt-1 text-base text-muted-foreground">
               Post an open request and any traveler flying from {selected.label} can take it.

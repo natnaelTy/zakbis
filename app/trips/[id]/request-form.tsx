@@ -53,7 +53,7 @@ export function RequestForm({ trip }: { trip: Trip }) {
       <section className="space-y-4">
         <h2 className="text-lg font-bold">Price and reward</h2>
         <PriceField f={f} show={show} rateNote="send" />
-        <Field id="reward" label="Reward (ETB)" hint={`A thank-you to ${name} for shopping and carrying it.`} error={show("reward")}>
+        <Field id="reward" label="Reward (ETB)" error={show("reward")}>
           <Input id="reward" inputMode="numeric" value={reward} onChange={(e) => setReward(e.target.value)} {...invalidProps(show("reward"), "reward")} />
         </Field>
       </section>

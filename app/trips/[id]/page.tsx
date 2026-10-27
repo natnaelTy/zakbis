@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format, parseISO } from "date-fns";
-import { ChevronLeft, EyeOff, Star } from "lucide-react";
+import { ArrowLeft, EyeClosed, Star } from "@/components/icons";
 import { AppShell } from "@/components/app-shell";
 import { ratingLabel, TripTag } from "@/components/trip-tag";
 import { getTrip } from "@/lib/sample-data";
@@ -17,14 +17,14 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
     <AppShell active="Explore">
       <main className="px-4 md:mx-auto md:max-w-xl md:px-0">
         <Link href="/" className="-ml-1 inline-flex items-center text-base font-medium text-brand-text">
-          <ChevronLeft aria-hidden className="size-5" /> Trips
+          <ArrowLeft aria-hidden className="size-5" /> Trips
         </Link>
         <h1 className="sr-only">Request an item from {trip.travelerName}</h1>
         <div className="mt-3">
           <TripTag trip={trip} static />
         </div>
         <p className="mt-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          <EyeOff aria-hidden className="size-3.5" /> {trip.travelerName}&apos;s photo is shown once your request is accepted.
+          <EyeClosed aria-hidden className="size-3.5" /> {trip.travelerName}&apos;s photo is shown once your request is accepted.
         </p>
         <section aria-labelledby="reviews" className="mt-6">
           <div>

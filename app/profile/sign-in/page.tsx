@@ -3,7 +3,7 @@ import { SignInPanel } from "./sign-in-panel";
 
 export default function SignInMethodsPage() {
   return (
-    <SubPage title="Ways to sign in" note="Only you can see these.">
+    <SubPage title="Ways to sign in">
       <SignInPanel />
     </SubPage>
   );

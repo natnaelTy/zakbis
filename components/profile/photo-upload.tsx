@@ -70,7 +70,7 @@ export function PhotoUpload({ side }: { side: Side }) {
   }
 
   return (
-    <Field id={id} label="Photo" hint={side === "traveler" ? "Receivers see it clearly once you accept their request." : "Travelers see this photo."} error={error}>
+    <Field id={id} label="Photo" error={error}>
       <ImageUploadField
         id={id}
         label="profile photo"

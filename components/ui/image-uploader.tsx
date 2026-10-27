@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, UploadCloud, X } from "lucide-react";
+import { CloseCircle, CloudUpload, DangerCircle } from "@/components/icons";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
@@ -154,7 +154,7 @@ export function ImageUploadField({
 
             {!disabled && (
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50">
-                <UploadCloud className="w-8 h-8 text-white/80" />
+                <CloudUpload className="w-8 h-8 text-white/80" />
               </div>
             )}
 
@@ -167,13 +167,13 @@ export function ImageUploadField({
                 className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
                 onClick={handleRemove}
               >
-                <X className="w-4 h-4 text-foreground/70" />
+                <CloseCircle className="w-4 h-4 text-foreground/70" />
               </Button>
             )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-2 p-4 text-center">
-            <UploadCloud className="w-8 h-8 text-muted-foreground" />
+            <CloudUpload className="w-8 h-8 text-muted-foreground" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">
                 Click to upload
@@ -189,7 +189,7 @@ export function ImageUploadField({
 
         {error && previewUrl && (
           <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 text-sm text-destructive bg-destructive/10 rounded-md">
-            <AlertCircle className="w-4 h-4" />
+            <DangerCircle className="w-4 h-4" />
             Invalid image
           </div>
         )}

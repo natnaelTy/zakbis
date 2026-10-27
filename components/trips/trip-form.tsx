@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText } from "lucide-react";
+import { DocumentText } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -173,7 +173,7 @@ export function TripForm({ initial, onDone }: { initial?: TripFormInitial; onDon
           <Field
             id="proof"
             label={d.proof_kind === "ticket" ? "E-ticket, booking screenshot or itinerary photo" : "Roster or duty schedule screenshot"}
-            hint={!needsNewProof && !file ? "Your current file stays unless you choose a new one." : "PDF, JPG, PNG or WebP, up to 10 MB. Only Zakbis staff see it."}
+            hint={!needsNewProof && !file ? "Your current file stays unless you choose a new one." : undefined}
             error={errors.proof}
           >
             <input id="proof" type="file" accept={PROOF_TYPES.join(",")} className="peer sr-only" onChange={(e) => pickFile(e.target.files?.[0])} {...invalidProps(errors.proof, "proof")} />
@@ -181,7 +181,7 @@ export function TripForm({ initial, onDone }: { initial?: TripFormInitial; onDon
               htmlFor="proof"
               className={cn("flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-dashed bg-card px-4 text-base peer-focus-visible:ring-3 peer-focus-visible:ring-ring/20", errors.proof && "border-destructive")}
             >
-              <FileText aria-hidden className="size-5 shrink-0 text-brand-text" />
+              <DocumentText aria-hidden className="size-5 shrink-0 text-brand-text" />
               <span className="truncate">{file ? file.name : "Choose a file"}</span>
             </label>
           </Field>
@@ -207,8 +207,8 @@ export function TripForm({ initial, onDone }: { initial?: TripFormInitial; onDon
           <Field id="origin_city" label="City" error={errors.origin_city}>
             <Input id="origin_city" value={d.origin_city} onChange={(e) => set("origin_city", e.target.value)} {...invalidProps(errors.origin_city, "origin_city")} />
           </Field>
-          <Field id="origin_airport" label="Airport code" hint="The 3 letters on your ticket, like DXB." error={errors.origin_airport}>
-            <Input id="origin_airport" maxLength={3} autoCapitalize="characters" value={d.origin_airport} onChange={(e) => set("origin_airport", e.target.value)} {...invalidProps(errors.origin_airport, "origin_airport")} />
+          <Field id="origin_airport" label="Airport code" error={errors.origin_airport}>
+            <Input id="origin_airport" placeholder="DXB" maxLength={3} autoCapitalize="characters" value={d.origin_airport} onChange={(e) => set("origin_airport", e.target.value)} {...invalidProps(errors.origin_airport, "origin_airport")} />
           </Field>
           <Field id="arrival_date" label="Date you land in Addis" error={errors.arrival_date}>
             <Input id="arrival_date" type="date" min={today} value={d.arrival_date} onChange={(e) => set("arrival_date", e.target.value)} {...invalidProps(errors.arrival_date, "arrival_date")} />
@@ -221,7 +221,7 @@ export function TripForm({ initial, onDone }: { initial?: TripFormInitial; onDon
           <Field id="free_kg" label="Free space (kg)" error={errors.free_kg}>
             <Input id="free_kg" inputMode="decimal" value={d.free_kg} onChange={(e) => set("free_kg", e.target.value)} {...invalidProps(errors.free_kg, "free_kg")} />
           </Field>
-          <Field id="shop_by" label="Last day you can shop" hint="Receivers' items must reach you by then." error={errors.shop_by}>
+          <Field id="shop_by" label="Last day you can shop" error={errors.shop_by}>
             <Input id="shop_by" type="date" min={today} max={d.arrival_date || undefined} value={d.shop_by} onChange={(e) => set("shop_by", e.target.value)} {...invalidProps(errors.shop_by, "shop_by")} />
           </Field>
           <Field id="note" label="Note (optional)">

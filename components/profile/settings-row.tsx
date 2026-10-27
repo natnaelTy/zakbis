@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ArrowRight, type Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const tones = { muted: "text-muted-foreground", good: "text-brand-text", bad: "text-destructive" } as const;
@@ -16,7 +16,7 @@ export function SettingsRow({
 }: {
   href?: string;
   onClick?: () => void;
-  icon: LucideIcon;
+  icon: Icon;
   label: string;
   status?: string;
   tone?: keyof typeof tones;
@@ -24,10 +24,10 @@ export function SettingsRow({
 }) {
   const body = (
     <>
-      <Icon aria-hidden className={cn("size-6 shrink-0", destructive ? "text-destructive" : "text-brand-text")} strokeWidth={1.75} />
+      <Icon aria-hidden className={cn("size-6 shrink-0", destructive ? "text-destructive" : "text-brand-text")} />
       <span className={cn("flex-1 text-base", destructive && "font-semibold text-destructive")}>{label}</span>
       {status && <span className={cn("text-sm font-medium", tones[tone])}>{status}</span>}
-      {!destructive && <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />}
+      {!destructive && <ArrowRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />}
     </>
   );
   const className = "flex min-h-14 w-full items-center gap-4 border-b py-3 text-left transition-colors hover:bg-muted/50";

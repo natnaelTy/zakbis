@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BadgeCheck, Clock, ShieldAlert } from "lucide-react";
+import { ClockCircle, ShieldWarning, VerifiedCheck } from "@/components/icons";
 import { createClient } from "@/lib/supabase/client";
 import { addisToday } from "@/lib/open-requests";
 
@@ -42,19 +42,19 @@ export function VerificationStatus({ verification }: { verification?: Verificati
       )}
       {v?.status === "pending" && (
         <p className="mt-1 flex gap-2 text-base">
-          <Clock aria-hidden className="mt-1 size-4 shrink-0 text-warning" />
+          <ClockCircle aria-hidden className="mt-1 size-4 shrink-0 text-warning" />
           We&apos;re still checking your documents. You can post trips once you&apos;re approved.
         </p>
       )}
       {v?.status === "approved" && !expired && (
         <p className="mt-1 flex items-center gap-2 text-base text-brand-text">
-          <BadgeCheck aria-hidden className="size-4 shrink-0" /> You&apos;re a verified traveler.
+          <VerifiedCheck aria-hidden className="size-4 shrink-0" /> You&apos;re a verified traveler.
         </p>
       )}
       {expired && (
         <>
           <p className="mt-1 flex gap-2 text-base">
-            <ShieldAlert aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
+            <ShieldWarning aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
             Your passport has expired.
           </p>
           <Link href="/traveler/verify" className={linkClass}>
@@ -65,7 +65,7 @@ export function VerificationStatus({ verification }: { verification?: Verificati
       {v?.status === "rejected" && (
         <>
           <p className="mt-1 flex gap-2 text-base">
-            <ShieldAlert aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
+            <ShieldWarning aria-hidden className="mt-1 size-4 shrink-0 text-destructive" />
             We couldn&apos;t verify you: {v.rejection_reason}
           </p>
           <Link href="/traveler/verify" className={linkClass}>

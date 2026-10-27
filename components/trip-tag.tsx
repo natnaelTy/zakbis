@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { ChevronRight, Plane, Star } from "lucide-react";
+import { ArrowRight, Plane, Star } from "@/components/icons";
 import { AE, CN, ET, GB, US } from "country-flag-icons/react/3x2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
@@ -44,7 +44,7 @@ export function TripTag({ trip, static: isStatic = false, revealPhoto = false }:
         </span>
         {trip.reviewCount > 0 ? (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-sm">
-            <Star aria-hidden className="size-3.5 fill-current" />
+            <Star aria-hidden className="size-3.5" />
             <span aria-hidden>
               <span className="font-semibold">{trip.rating.toFixed(1)}</span> · {trip.reviewCount} {trip.reviewCount === 1 ? "review" : "reviews"}
             </span>
@@ -60,7 +60,7 @@ export function TripTag({ trip, static: isStatic = false, revealPhoto = false }:
           <Flag aria-hidden className={flagClass} />
           <p className="mt-2 text-lg leading-snug font-semibold [overflow-wrap:anywhere]">{trip.originCity}</p>
         </div>
-        <Plane aria-hidden className="mb-1.5 size-5 rotate-45 text-muted-foreground" /> {/* lucide's plane points up-right; 45° makes it fly toward Addis */}
+        <Plane aria-hidden className="mb-1.5 size-6 rotate-45 text-brand-text" /> {/* Solar's plane points up-right; 45° makes it fly toward Addis */}
         <div className="flex min-w-0 flex-col items-end">
           <ET aria-hidden className={flagClass} />
           <p className="mt-2 text-right text-base leading-snug text-muted-foreground">Addis Ababa</p>
@@ -85,7 +85,7 @@ export function TripTag({ trip, static: isStatic = false, revealPhoto = false }:
         {!isStatic && (
           <span className="ml-auto flex items-center font-semibold text-brand-text">
             Request
-            <ChevronRight aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
           </span>
         )}
       </div>
