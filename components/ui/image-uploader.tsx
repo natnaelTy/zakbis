@@ -21,6 +21,14 @@ interface ImageUploadFieldProps {
   defaultImage?: string;
   isLoading?: boolean;
   maxSize?: number;
+  onReject?: (message: string) => void;
+  id?: string;
+  "aria-describedby"?: string;
+  capture?: "user" | "environment";
+  /** Accessible name of what is uploaded, e.g. "passport photo". */
+  label?: string;
+  /** Exact MIME types allowed (checked on selection, so storage never rejects later). Default: any image. */
+  acceptTypes?: string[];
 }
 
 export function ImageUploadField({
@@ -36,6 +44,12 @@ export function ImageUploadField({
   defaultImage,
   isLoading = false,
   maxSize = 4 * 1024 * 1024,
+  onReject,
+  id,
+  "aria-describedby": describedBy,
+  capture,
+  label = "screenshot",
+  acceptTypes,
 }: ImageUploadFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -57,8 +71,16 @@ export function ImageUploadField({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Add null check before accessing file properties
-    if (file && file.size) {
+    if (acceptTypes ? !acceptTypes.includes(file.type) : !file.type.startsWith("image/")) {
+      e.target.value = "";
+      const names = acceptTypes?.map((t) => t.split("/")[1].replace("jpeg", "JPG").replace(/^(png|webp)$/, (x) => (x === "png" ? "PNG" : "WebP")));
+      return onReject?.(names ? `Use a ${names.slice(0, -1).join(", ")} or ${names.at(-1)} photo` : "Please choose an image");
+    }
+    if (file.size > maxSize) {
+      e.target.value = "";
+      return onReject?.(`Image must be under ${maxSize / 1024 / 1024} MB`);
+    }
+    if (file.size) {
       onChange?.(file);
       onBlur?.();
     }
@@ -72,13 +94,9 @@ export function ImageUploadField({
 
   if (isLoading) {
     return (
-      <Skeleton
-        className={cn(
-          `rounded-lg border-2 border-dashed border-muted`,
-          className,
-          aspectRatio ? `aspect-[${aspectRatio}/1]` : ""
-        )}
-      />
+      <div className={className} style={{ aspectRatio }}>
+        <Skeleton className="size-full rounded-lg border-2 border-dashed border-muted" />
+      </div>
     );
   }
 
@@ -86,7 +104,8 @@ export function ImageUploadField({
     <div className={cn("group relative", className)}>
       <Input
         type="file"
-        accept="image/*"
+        accept={acceptTypes?.join(",") ?? "image/*"}
+        capture={capture}
         className="hidden"
         ref={fileInputRef}
         onChange={handleFileChange}
@@ -97,21 +116,37 @@ export function ImageUploadField({
       <div
         className={cn(
           "relative overflow-hidden rounded-lg border-2 transition-all",
-          "hover:border-primary/50 cursor-pointer bg-background",
+          "hover:border-ring/50 cursor-pointer bg-card",
           error
             ? "border-destructive hover:border-destructive"
-            : "border-muted",
+            : "border-input",
           disabled && "pointer-events-none opacity-50 cursor-not-allowed",
           previewUrl ? "border-solid" : "border-dashed",
         )}
         style={{ aspectRatio }}
+        id={id}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-invalid={error || undefined}
+        aria-describedby={describedBy}
+        aria-label={`${previewUrl ? "Change" : "Add"} ${label}`}
         onClick={() => !disabled && fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          // Ignore keys bubbling from the nested Remove button, or Enter there opens the picker.
+          if (e.target !== e.currentTarget || disabled || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault();
+          fileInputRef.current?.click();
+        }}
       >
         {previewUrl ? (
           <>
+            {/* unoptimized: previews come from storage, Telegram or Google, hosts the image optimizer isn't configured for. */}
             <Image
               fill
+              unoptimized
               src={previewUrl}
+              // A Telegram/Google photo link dies when the user changes their picture: fall back to the empty uploader.
+              onError={() => setPreviewUrl(null)}
               alt="Preview"
               className="object-cover transition-opacity group-hover:opacity-50"
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -128,12 +163,9 @@ export function ImageUploadField({
                 variant="ghost"
                 size="icon"
                 type="button"
+                aria-label={`Remove ${label}`}
                 className="absolute top-2 right-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log("Remove image");
-                  handleRemove(e);
-                }}
+                onClick={handleRemove}
               >
                 <X className="w-4 h-4 text-foreground/70" />
               </Button>
@@ -144,7 +176,7 @@ export function ImageUploadField({
             <UploadCloud className="w-8 h-8 text-muted-foreground" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">
-                click to upload
+                Click to upload
               </p>
               <p className="text-xs text-muted-foreground">
                 {maxSize
@@ -155,7 +187,7 @@ export function ImageUploadField({
           </div>
         )}
 
-        {error && (
+        {error && previewUrl && (
           <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 text-sm text-destructive bg-destructive/10 rounded-md">
             <AlertCircle className="w-4 h-4" />
             Invalid image

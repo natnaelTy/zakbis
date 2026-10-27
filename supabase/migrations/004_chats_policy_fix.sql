@@ -1,5 +1,0 @@
--- ============================================================
--- Obsolete migration kept for history.
--- Dedicated triangular_chats and shopping_chats policies now live in
--- 005_dedicated_chats.sql and supabase/schema.sql.
--- ============================================================

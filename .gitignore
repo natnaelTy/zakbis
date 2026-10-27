@@ -5,3 +5,15 @@
 /.next/
 
 .env*
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+.superpowers/
+*.tsbuildinfo
+# Impeccable scratch (screenshots, mocks, local config)
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/tmp/
+.impeccable/questions/
+.impeccable/hook.cache.json
+.impeccable/config.local.json
+supabase/tests/.pg/

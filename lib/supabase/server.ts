@@ -1,22 +1,17 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 
 export async function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
   const cookieStore = await cookies();
-
-  return createServerClient(supabaseUrl, serviceRoleKey, {
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
-      getAll() { return cookieStore.getAll(); },
-      setAll(cookiesToSet) {
+      getAll: () => cookieStore.getAll(),
+      setAll: (list) => {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        } catch {}
+          list.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          // Server components can't set cookies; proxy.ts refreshes the session instead.
+        }
       },
     },
   });

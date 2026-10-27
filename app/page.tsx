@@ -1,56 +1,78 @@
-import type { Metadata } from "next";
-import { SiteHeader } from "@/components/landing/site-header";
-import { HeroSection } from "@/components/landing/hero";
-import { HowItWorksSection } from "@/components/landing/how-it-works";
-import { TrustSection } from "@/components/landing/trust-section";
-import { FaqSection } from "@/components/landing/faq";
-import { CtaSection } from "@/components/landing/cta-section";
-import { SiteFooter } from "@/components/landing/site-footer";
-import Hero from "@/components/waitlist/Hero";
-import Corridors from "@/components/waitlist/Corridors";
-import HowItWorks from "@/components/waitlist/HowItWorks";
+import Link from "next/link";
+import { Plane } from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { TripTag } from "@/components/trip-tag";
+import { trips } from "@/lib/sample-data";
+import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Zakbis — Peer-to-Peer Logistics: USA & China to Ethiopia",
-  description:
-    "The peer-to-peer logistics network connecting the Ethiopian diaspora. Buy items from USA, China and ship to Ethiopia affordably. Travelers earn by renting spare luggage space.",
-  openGraph: {
-    title: "Zakbis — Peer-to-Peer Logistics: USA & China to Ethiopia",
-    description:
-      "The peer-to-peer logistics network connecting the Ethiopian diaspora. Buy items from USA, China and ship to Ethiopia affordably.",
-    type: "website",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Zakbis - Peer-to-Peer Logistics Platform",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Zakbis — Peer-to-Peer Logistics: USA & China to Ethiopia",
-    description:
-      "The peer-to-peer logistics network connecting the Ethiopian diaspora. Buy items from USA, China and ship to Ethiopia affordably.",
-    images: ["/og-image.jpg"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+const origins = [
+  { code: undefined, label: "All" },
+  { code: "US", label: "USA" },
+  { code: "GB", label: "UK" },
+  { code: "CN", label: "China" },
+  { code: "AE", label: "Dubai" },
+] as const;
 
-export default function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
+  const { from } = await searchParams;
+  const selected = origins.find((o) => o.code === from) ?? origins[0];
+  const shown = selected.code ? trips.filter((t) => t.originCountry === selected.code) : trips;
+
   return (
-    <>
-      <SiteHeader />
-      <main>
-        <Hero />
-        <Corridors />
-        <HowItWorks />
+    <AppShell active="Trips">
+      <main className="px-4 md:px-0">
+        <div className="flex items-baseline justify-between pt-2">
+          <h1 className="text-2xl font-bold tracking-[-0.02em]">Trips to Addis</h1>
+          <p className="text-sm text-muted-foreground">{shown.length} upcoming · sample data</p>
+        </div>
+
+        <nav aria-label="Filter by origin" className="-mx-4 mt-3 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
+          <ul className="flex gap-2">
+            {origins.map((o) => {
+              const on = o === selected;
+              return (
+                <li key={o.label}>
+                  <Link
+                    href={o.code ? `/?from=${o.code}` : "/"}
+                    aria-current={on ? "true" : undefined}
+                    className={cn(
+                      "block rounded-full border bg-card px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors hover:border-foreground/30",
+                      on && "border-foreground bg-foreground text-background hover:border-foreground",
+                    )}
+                  >
+                    {o.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {shown.length > 0 ? (
+          <ul className="mt-4 grid gap-3 md:grid-cols-2 md:gap-4">
+            {shown.map((trip) => (
+              <li key={trip.id}>
+                <TripTag trip={trip} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="mt-12 flex flex-col items-center px-6 text-center">
+            <Plane aria-hidden className="size-10 text-muted-foreground" strokeWidth={1.5} />
+            <p className="mt-4 font-semibold">No trips from {selected.label} yet</p>
+            <p className="mt-1 text-base text-muted-foreground">
+              Post an open request and any traveler flying from {selected.label} can take it.
+            </p>
+            <Link href="/post" className="mt-5 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
+              Post a request
+            </Link>
+          </div>
+        )}
+
+        <p className="mt-6 text-center text-base text-muted-foreground">
+          Travelers only carry items allowed by their airline and Ethiopian customs.
+        </p>
       </main>
-      <SiteFooter />
-    </>
+    </AppShell>
   );
 }
