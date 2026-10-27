@@ -5,6 +5,7 @@ import { ImageUploadField } from "@/components/ui/image-uploader";
 import { Field } from "@/components/request/item-fields";
 import { createClient } from "@/lib/supabase/client";
 import { blurImage } from "@/lib/blur";
+import { receiverPhotoSrc } from "@/lib/photos";
 import type { Side } from "@/lib/sides";
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -26,7 +27,8 @@ export function PhotoUpload({ side }: { side: Side }) {
       const { data } = await supabase.auth.getUser();
       if (!data.user) return;
       const { data: p } = await supabase.from("profiles").select("receiver_photo_path, photo_path").eq("id", data.user.id).maybeSingle();
-      if (side === "receiver" && p?.receiver_photo_path) setCurrent(supabase.storage.from("receiver-photos").getPublicUrl(p.receiver_photo_path).data.publicUrl);
+      if (side === "receiver" && p?.receiver_photo_path)
+        setCurrent(receiverPhotoSrc(p.receiver_photo_path, (path) => supabase.storage.from("receiver-photos").getPublicUrl(path).data.publicUrl));
       if (side === "traveler" && p?.photo_path) setCurrent((await supabase.storage.from("photos").createSignedUrl(p.photo_path, 3600)).data?.signedUrl ?? null);
     })();
   }, [side]);

@@ -10,6 +10,7 @@ import { GoogleButton } from "@/components/auth/google-button";
 import { createClient } from "@/lib/supabase/client";
 import { isInternalEmail, maskEmail } from "@/lib/auth-email";
 import type { Side } from "@/lib/sides";
+import { isProviderPhoto } from "@/lib/photos";
 import { notifySideChanged } from "@/components/auth/use-side";
 
 type Step = "choose" | "code" | "side" | "name";
@@ -32,6 +33,7 @@ export function SignInSheet({
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string>(); // from Telegram or Google: the default receiver photo
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(0);
@@ -51,7 +53,7 @@ export function SignInSheet({
     return () => clearTimeout(t);
   }, [resendIn]);
 
-  async function afterSignIn(fallbackName = "") {
+  async function afterSignIn(fallbackName = "", fallbackPhoto?: string) {
     const supabase = createClient();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return setError("Sign-in didn't complete. Please try again.");
@@ -61,11 +63,12 @@ export function SignInSheet({
       return onDone(profile.active_side as Side, false);
     }
     setName(fallbackName);
+    setPhotoUrl(fallbackPhoto);
     setStep("side");
   }
 
   /** Writes the caller's profile row, creating it if this is a new account. */
-  async function saveProfile(fields: { active_side: Side; first_name?: string }) {
+  async function saveProfile(fields: { active_side: Side; first_name?: string; receiver_photo_path?: string }) {
     const supabase = createClient();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return false;
@@ -93,8 +96,8 @@ export function SignInSheet({
     const res = await fetch("/api/auth/telegram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(user) }).catch(() => null);
     setBusy(false);
     if (!res?.ok) return setError("Telegram sign-in failed. Please try again.");
-    const { firstName } = (await res.json()) as { firstName: string };
-    await afterSignIn(firstName);
+    const { firstName, photoUrl } = (await res.json()) as { firstName: string; photoUrl?: string };
+    await afterSignIn(firstName, photoUrl);
   }
 
   async function sendCode(e?: React.FormEvent) {
@@ -126,7 +129,7 @@ export function SignInSheet({
     const first = name.trim();
     if (!first || first.length > 40) return setError("Enter your first name");
     setBusy(true);
-    const ok = await saveProfile({ active_side: "receiver", first_name: first });
+    const ok = await saveProfile({ active_side: "receiver", first_name: first, ...(photoUrl && isProviderPhoto(photoUrl) && { receiver_photo_path: photoUrl }) });
     setBusy(false);
     if (!ok) return setError("Couldn't save your name. Please try again.");
     notifySideChanged();
@@ -149,7 +152,7 @@ export function SignInSheet({
         {step === "choose" && (
           <div className="space-y-4">
             <TelegramButton onAuth={onTelegram} />
-            <GoogleButton onSignedIn={(firstName) => afterSignIn(firstName)} onError={setError} />
+            <GoogleButton onSignedIn={(firstName, photo) => afterSignIn(firstName, photo)} onError={setError} />
             <div className="flex items-center gap-3 text-sm text-muted-foreground" aria-hidden>
               <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
             </div>

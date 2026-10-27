@@ -86,11 +86,14 @@ function ReviewCard({ row: r, approved, onDecided }: { row: Row; approved: boole
   const [reason, setReason] = useState(REASONS[0]);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string>();
+  const [givenName, setGivenName] = useState(r.given_name ?? "");
   const nationality = new Intl.DisplayNames(["en"], { type: "region" }).of(r.nationality) ?? r.nationality;
 
   async function decide(approve: boolean) {
     const p_reason = approve ? null : note.trim() ? `${reason}: ${note.trim()}` : reason;
-    const { error } = await createClient().rpc("decide_verification", { p_user: r.user_id, p_approve: approve, p_reason });
+    if (approve && !givenName.trim()) return setError("Enter the first name as printed in the passport");
+    const p_given_name = approve ? givenName.trim() : null;
+    const { error } = await createClient().rpc("decide_verification", { p_user: r.user_id, p_approve: approve, p_reason, p_given_name });
     if (error) return setError(error.message);
     onDecided();
   }
@@ -112,8 +115,17 @@ function ReviewCard({ row: r, approved, onDecided }: { row: Row; approved: boole
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-base">
         <dt className="text-muted-foreground">Passport name</dt>
         <dd className="font-semibold">{r.legal_name}</dd>
-        <dt className="text-muted-foreground">First name (passport)</dt>
-        <dd>{r.given_name ?? "—"}</dd>
+        <dt className="text-muted-foreground">
+          <label htmlFor={`given-${r.user_id}`}>First name (shown publicly)</label>
+        </dt>
+        <dd>
+          {approved ? (
+            r.given_name ?? "—"
+          ) : (
+            // Prefilled with the first word of the passport name; fix it for surname-first passports.
+            <Input id={`given-${r.user_id}`} maxLength={40} value={givenName} onChange={(e) => setGivenName(e.target.value)} className="h-9 max-w-48 text-base" />
+          )}
+        </dd>
         <dt className="text-muted-foreground">Nationality</dt>
         <dd>{nationality}</dd>
         <dt className="text-muted-foreground">Expires</dt>

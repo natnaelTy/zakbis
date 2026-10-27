@@ -45,5 +45,5 @@ export async function POST(request: Request) {
   if (sessionError) return NextResponse.json({ error: "server" }, { status: 500 });
 
   const { data: profile } = await supabase.from("profiles").select("first_name, active_side").eq("id", userId).maybeSingle();
-  return NextResponse.json({ hasSide: !!profile?.active_side, firstName: profile?.first_name ?? tg.first_name });
+  return NextResponse.json({ firstName: profile?.first_name ?? tg.first_name, photoUrl: tg.photo_url });
 }

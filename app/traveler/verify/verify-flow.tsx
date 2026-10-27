@@ -49,7 +49,6 @@ export function VerifyFlow() {
   const [passport, setPassport] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string>();
-  const [givenName, setGivenName] = useState("");
   const [legalName, setLegalName] = useState("");
   const [nationality, setNationality] = useState("ET");
   const [expiry, setExpiry] = useState("");
@@ -75,12 +74,11 @@ export function VerifyFlow() {
     if (!profile?.active_side) return setUserId(null);
     setUserId(data.user.id);
     const [{ data: v }, { data: p }] = await Promise.all([
-      supabase.from("traveler_verifications").select("status, given_name, legal_name, nationality, passport_expiry").eq("user_id", data.user.id).maybeSingle(),
+      supabase.from("traveler_verifications").select("status, legal_name, nationality, passport_expiry").eq("user_id", data.user.id).maybeSingle(),
       supabase.from("payout_accounts").select("method, account_name, account_number, bank_name").eq("user_id", data.user.id).maybeSingle(),
     ]);
     if (v) {
       setLocked(v.status === "approved" && v.passport_expiry >= today);
-      setGivenName(v.given_name ?? "");
       setLegalName(v.legal_name);
       setNationality(v.nationality);
       if (v.passport_expiry >= today) setExpiry(v.passport_expiry);
@@ -100,7 +98,6 @@ export function VerifyFlow() {
     const e: Record<string, string> = {};
     if (s === 1) {
       if (!passport) e.passport = "Add a photo of your passport's photo page";
-      if (!givenName.trim()) e.givenName = "Enter your first name exactly as in your passport";
       if (legalName.trim().length < 2) e.legalName = "Enter your full name exactly as in your passport";
       if (!expiry || expiry < today) e.expiry = expiry ? "This passport has expired" : "Pick your passport's expiry date";
     }
@@ -144,7 +141,6 @@ export function VerifyFlow() {
         ? null
         : await supabase.from("traveler_verifications").upsert({
             user_id: userId,
-            given_name: givenName.trim(),
             legal_name: legalName.trim(),
             nationality,
             passport_expiry: expiry,
@@ -202,9 +198,6 @@ export function VerifyFlow() {
         <section className="space-y-4">
           <Field id="passport" label="Passport photo page" hint="All four corners visible, no glare." error={fileError ?? errors.passport}>
             <ImageUploadField id="passport" label="passport photo" acceptTypes={IMAGE_TYPES} aria-describedby={fileError ?? errors.passport ? "passport-error" : undefined} aspectRatio={1.42} maxSize={MAX_BYTES} value={passport} error={!!(fileError ?? errors.passport)} onChange={(f) => (setPassport(f instanceof File ? f : null), setFileError(undefined))} onReject={setFileError} />
-          </Field>
-          <Field id="givenName" label="First name, as in your passport" error={errors.givenName}>
-            <Input id="givenName" autoComplete="given-name" maxLength={40} value={givenName} onChange={(e) => setGivenName(e.target.value)} {...invalidProps(errors.givenName, "givenName")} />
           </Field>
           <Field id="legalName" label="Full name, exactly as in your passport" error={errors.legalName}>
             <Input id="legalName" autoComplete="name" value={legalName} onChange={(e) => setLegalName(e.target.value)} {...invalidProps(errors.legalName, "legalName")} />
@@ -294,8 +287,6 @@ export function VerifyFlow() {
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
             <dt className="text-muted-foreground">Name</dt>
             <dd className="font-semibold">{legalName.trim()}</dd>
-            <dt className="text-muted-foreground">First name</dt>
-            <dd>{givenName.trim()}</dd>
             <dt className="text-muted-foreground">Nationality</dt>
             <dd>{countries.find((c) => c.code === nationality)?.name}</dd>
             <dt className="text-muted-foreground">Passport expires</dt>

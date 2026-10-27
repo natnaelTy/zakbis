@@ -140,9 +140,13 @@ export function ImageUploadField({
       >
         {previewUrl ? (
           <>
+            {/* unoptimized: previews come from storage, Telegram or Google, hosts the image optimizer isn't configured for. */}
             <Image
               fill
+              unoptimized
               src={previewUrl}
+              // A Telegram/Google photo link dies when the user changes their picture: fall back to the empty uploader.
+              onError={() => setPreviewUrl(null)}
               alt="Preview"
               className="object-cover transition-opacity group-hover:opacity-50"
               sizes="(max-width: 768px) 100vw, 50vw"

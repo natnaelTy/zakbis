@@ -31,13 +31,16 @@ async function sha256Hex(text: string) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** First name from the Google ID token, only to prefill the name step (the server verifies the token itself). */
-function givenName(credential: string) {
+/** First name and photo from the Google ID token, only to prefill the receiver profile (the server verifies the token itself). */
+function profileHints(credential: string): { firstName: string; photoUrl?: string } {
   try {
     const payload = JSON.parse(atob(credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return typeof payload.given_name === "string" ? payload.given_name : "";
+    return {
+      firstName: typeof payload.given_name === "string" ? payload.given_name : "",
+      photoUrl: typeof payload.picture === "string" ? payload.picture : undefined,
+    };
   } catch {
-    return "";
+    return { firstName: "" };
   }
 }
 
@@ -45,7 +48,7 @@ function givenName(credential: string) {
  * Google's own button, in a popup so the form underneath survives.
  * Google gets the hashed nonce, Supabase the raw one, so a stolen ID token can't be replayed.
  */
-export function GoogleButton({ onSignedIn, onError }: { onSignedIn: (firstName: string) => void; onError: (message: string) => void }) {
+export function GoogleButton({ onSignedIn, onError }: { onSignedIn: (firstName: string, photoUrl?: string) => void; onError: (message: string) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const latest = useRef({ onSignedIn, onError });
   latest.current = { onSignedIn, onError };
@@ -66,7 +69,10 @@ export function GoogleButton({ onSignedIn, onError }: { onSignedIn: (firstName: 
         callback: async ({ credential }) => {
           const { error } = await createClient().auth.signInWithIdToken({ provider: "google", token: credential, nonce });
           if (error) latest.current.onError("Google sign-in failed. Please try again.");
-          else latest.current.onSignedIn(givenName(credential));
+          else {
+            const { firstName, photoUrl } = profileHints(credential);
+            latest.current.onSignedIn(firstName, photoUrl);
+          }
         },
       });
       window.google.accounts.id.renderButton(box.current, {
