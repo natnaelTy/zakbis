@@ -30,7 +30,7 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
   const [dateOpen, setDateOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [posted, setPosted] = useState(false);
-  const { requireAuth, sheet } = useRequireAuth("Sign in to post your request");
+  const { requireAuth, sheet } = useRequireAuth("Sign in to post your request", "receiver");
   // The remount removes the focused "Post another" button; put keyboard users back at the start of the form.
   useEffect(() => {
     if (refocus) focusField("countries");

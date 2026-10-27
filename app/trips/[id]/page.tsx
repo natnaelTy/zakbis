@@ -5,6 +5,7 @@ import { ChevronLeft, EyeOff, Star } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ratingLabel, TripTag } from "@/components/trip-tag";
 import { getTrip } from "@/lib/sample-data";
+import { SideGate } from "@/components/auth/side-gate";
 import { RequestForm } from "./request-form";
 
 export default async function TripPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,7 +58,9 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
             </p>
           )}
         </section>
-        <RequestForm trip={trip} />
+        <SideGate side="receiver">
+          <RequestForm trip={trip} />
+        </SideGate>
       </main>
     </AppShell>
   );

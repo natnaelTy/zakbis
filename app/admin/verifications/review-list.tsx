@@ -13,12 +13,12 @@ const REASONS = ["Photo unclear", "Name doesn't match", "Passport expired", "Sel
 type Row = {
   user_id: string;
   legal_name: string;
+  given_name: string | null;
   nationality: string;
   passport_expiry: string;
   passport_path: string;
   selfie_path: string;
   submitted_at: string;
-  firstName: string;
   payout: { method: string; account_name: string; account_number: string; bank_name: string | null } | null;
   passportUrl?: string;
   selfieUrl?: string;
@@ -34,13 +34,12 @@ export function ReviewList() {
     const supabase = createClient();
     const { data: v } = await supabase
       .from("traveler_verifications")
-      .select("user_id, legal_name, nationality, passport_expiry, passport_path, selfie_path, submitted_at")
+      .select("user_id, legal_name, given_name, nationality, passport_expiry, passport_path, selfie_path, submitted_at")
       .eq("status", tab)
       .order("submitted_at", { ascending: true });
     const list = v ?? [];
     const ids = list.map((r) => r.user_id);
-    const [{ data: profiles }, { data: payouts }, signed] = await Promise.all([
-      supabase.from("profiles").select("id, first_name").in("id", ids),
+    const [{ data: payouts }, signed] = await Promise.all([
       supabase.from("payout_accounts").select("user_id, method, account_name, account_number, bank_name").in("user_id", ids),
       // Short-lived links: identity images are never public.
       list.length ? supabase.storage.from("identity").createSignedUrls(list.flatMap((r) => [r.passport_path, r.selfie_path]), 300) : { data: [] },
@@ -49,7 +48,6 @@ export function ReviewList() {
     setRows(
       list.map((r) => ({
         ...r,
-        firstName: profiles?.find((p) => p.id === r.user_id)?.first_name ?? "—",
         payout: payouts?.find((p) => p.user_id === r.user_id) ?? null,
         passportUrl: url(r.passport_path),
         selfieUrl: url(r.selfie_path),
@@ -58,7 +56,7 @@ export function ReviewList() {
   }, [tab]);
   useEffect(() => void load(), [load]);
 
-  const shown = rows?.filter((r) => !search.trim() || `${r.legal_name} ${r.firstName}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const shown = rows?.filter((r) => !search.trim() || `${r.legal_name} ${r.given_name ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()));
 
   return (
     <div className="mt-4 space-y-4 pb-8">
@@ -114,8 +112,8 @@ function ReviewCard({ row: r, approved, onDecided }: { row: Row; approved: boole
       <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-base">
         <dt className="text-muted-foreground">Passport name</dt>
         <dd className="font-semibold">{r.legal_name}</dd>
-        <dt className="text-muted-foreground">Zakbis name</dt>
-        <dd>{r.firstName}</dd>
+        <dt className="text-muted-foreground">First name (passport)</dt>
+        <dd>{r.given_name ?? "—"}</dd>
         <dt className="text-muted-foreground">Nationality</dt>
         <dd>{nationality}</dd>
         <dt className="text-muted-foreground">Expires</dt>

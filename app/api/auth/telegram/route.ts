@@ -44,6 +44,6 @@ export async function POST(request: Request) {
   const { error: sessionError } = await supabase.auth.verifyOtp({ type: "magiclink", token_hash: magic.properties.hashed_token });
   if (sessionError) return NextResponse.json({ error: "server" }, { status: 500 });
 
-  const { data: profile } = await supabase.from("profiles").select("id, first_name").eq("id", userId).maybeSingle();
-  return NextResponse.json({ hasProfile: !!profile, firstName: profile?.first_name ?? tg.first_name });
+  const { data: profile } = await supabase.from("profiles").select("first_name, active_side").eq("id", userId).maybeSingle();
+  return NextResponse.json({ hasSide: !!profile?.active_side, firstName: profile?.first_name ?? tg.first_name });
 }

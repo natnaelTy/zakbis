@@ -29,8 +29,8 @@ insert into trips (id, traveler_id, origin_country, origin_city, origin_airport,
 -- Owner submits, trying to approve themselves.
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-insert into traveler_verifications (user_id, legal_name, nationality, passport_expiry, passport_path, selfie_path, status, decided_by)
-  values ('00000000-0000-0000-0000-0000000000c1', 'HANA TESFAYE', 'ET', addis_today() + 400,
+insert into traveler_verifications (user_id, legal_name, given_name, nationality, passport_expiry, passport_path, selfie_path, status, decided_by)
+  values ('00000000-0000-0000-0000-0000000000c1', 'HANA TESFAYE', 'Hana', 'ET', addis_today() + 400,
           '00000000-0000-0000-0000-0000000000c1/p.jpg', '00000000-0000-0000-0000-0000000000c1/s.jpg', 'approved', '00000000-0000-0000-0000-0000000000c1');
 do $$ begin
   assert (select status from traveler_verifications) = 'pending', 'insert forces pending';
@@ -146,8 +146,8 @@ do $$ begin assert (select count(*) from traveler_verifications) = 0, 'stranger 
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d1';
 select set_config('zakbis.deciding', 'on', true);
-insert into traveler_verifications (user_id, legal_name, nationality, passport_expiry, passport_path, selfie_path, status)
-  values ('00000000-0000-0000-0000-0000000000d1', 'SAMI X', 'ET', addis_today() + 400,
+insert into traveler_verifications (user_id, legal_name, given_name, nationality, passport_expiry, passport_path, selfie_path, status)
+  values ('00000000-0000-0000-0000-0000000000d1', 'SAMI X', 'Sami', 'ET', addis_today() + 400,
           '00000000-0000-0000-0000-0000000000d1/p.jpg', '00000000-0000-0000-0000-0000000000d1/s.jpg', 'approved');
 select set_config('zakbis.deciding', 'off', true);
 do $$ begin assert (select status from traveler_verifications where user_id = '00000000-0000-0000-0000-0000000000d1') = 'pending', 'bypass refused for non-admins'; end $$;

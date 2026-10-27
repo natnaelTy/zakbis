@@ -16,7 +16,7 @@ export function RequestForm({ trip }: { trip: Trip }) {
   const [reward, setReward] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [sent, setSent] = useState(false);
-  const { requireAuth, sheet } = useRequireAuth("Sign in to send your request");
+  const { requireAuth, sheet } = useRequireAuth("Sign in to send your request", "receiver");
 
   const rewardEtb = parseEtb(reward);
   const q = f.itemEtb && f.unitPrice && rewardEtb ? quote({ unitPrice: f.unitPrice, quantity: f.qty, rate: f.rate, reward: rewardEtb }) : null;

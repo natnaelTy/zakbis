@@ -3,9 +3,9 @@
 create function test_verify(uid uuid) returns void language plpgsql as $$
 begin
   perform set_config('zakbis.deciding', 'on', true);
-  insert into traveler_verifications (user_id, legal_name, nationality, passport_expiry, passport_path, selfie_path, status)
-    values (uid, 'TEST TRAVELER', 'ET', addis_today() + 365, uid || '/p.jpg', uid || '/s.jpg', 'approved')
-    on conflict (user_id) do update set status = 'approved', passport_expiry = addis_today() + 365;
+  insert into traveler_verifications (user_id, legal_name, given_name, nationality, passport_expiry, passport_path, selfie_path, status)
+    values (uid, 'TEST TRAVELER', 'Test', 'ET', addis_today() + 365, uid || '/p.jpg', uid || '/s.jpg', 'approved')
+    on conflict (user_id) do update set status = 'approved', given_name = 'Test', passport_expiry = addis_today() + 365;
   update profiles set verified = true where id = uid;
   perform set_config('zakbis.deciding', 'off', true);
 end $$;

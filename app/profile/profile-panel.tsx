@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/request/item-fields";
 import { TelegramButton } from "@/components/auth/telegram-button";
-import { VerificationStatus } from "@/components/traveler/verification-status";
+import { loadMyVerification, VerificationStatus } from "@/components/traveler/verification-status";
+import { PhotoUpload } from "@/components/profile/photo-upload";
+import { notifySideChanged, switchSide, useSide } from "@/components/auth/use-side";
+import { addisToday } from "@/lib/open-requests";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { createClient } from "@/lib/supabase/client";
 import { isInternalEmail, maskEmail } from "@/lib/auth-email";
@@ -21,6 +25,10 @@ export function ProfilePanel() {
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
   const [message, setMessage] = useState<string>();
+  const [givenName, setGivenName] = useState<string | null>(null);
+  const [askName, setAskName] = useState(false); // traveler switching to receiving without a receiver name yet
+  const { side } = useSide();
+  const router = useRouter();
   const { requireAuth, sheet } = useRequireAuth("Sign in to Zakbis");
 
   const load = useCallback(async () => {
@@ -28,13 +36,17 @@ export function ProfilePanel() {
     const { data } = await supabase.auth.getUser();
     setUser(data.user);
     if (data.user) {
-      const { data: profile } = await supabase.from("profiles").select("id, first_name").eq("id", data.user.id).maybeSingle();
+      const [{ data: profile }, { data: v }] = await Promise.all([
+        supabase.from("profiles").select("first_name").eq("id", data.user.id).maybeSingle(),
+        supabase.from("traveler_verifications").select("given_name, status").eq("user_id", data.user.id).maybeSingle(),
+      ]);
       setName(profile?.first_name ?? "");
+      setGivenName(v?.status === "approved" ? v.given_name : null);
     }
   }, []);
   useEffect(() => void load(), [load]);
 
-  if (user === undefined) return <p className="mt-6 text-base text-muted-foreground">Loading…</p>;
+  if (user === undefined || (user && side === undefined)) return <p className="mt-6 text-base text-muted-foreground">Loading…</p>;
 
   if (!user)
     return (
@@ -64,12 +76,23 @@ export function ProfilePanel() {
     e.preventDefault();
     const first = name.trim();
     if (!first || first.length > 40) return setMessage("Enter your first name");
-    const supabase = createClient();
-    // Someone who closed the sign-in sheet before naming has no profile row yet: update would match nothing.
-    const { data: updated, error: updateError } = await supabase.from("profiles").update({ first_name: first }).eq("id", user!.id).select("id");
-    const { error } = updateError || updated?.length ? { error: updateError } : await supabase.from("profiles").insert({ id: user!.id, first_name: first });
+    // From the traveler side, saving the first receiver name is also the switch to receiving.
+    const fields = askName ? { first_name: first, active_side: "receiver" } : { first_name: first };
+    const { error } = await createClient().from("profiles").update(fields).eq("id", user!.id);
     setMessage(error ? "Couldn't save your name" : undefined);
     setSaved(!error);
+    if (!error && askName) {
+      notifySideChanged();
+      router.push("/");
+    }
+  }
+
+  async function switchTo(to: "receiver" | "traveler") {
+    if (to === "receiver" && !name.trim()) return setAskName(true);
+    if (!(await switchSide(to))) return setMessage("Couldn't switch. Please try again.");
+    if (to === "receiver") return router.push("/");
+    const v = await loadMyVerification();
+    router.push(v?.status === "approved" && v.passport_expiry >= addisToday(new Date()) ? "/requests" : "/traveler/verify");
   }
 
   async function connectTelegram(data: Record<string, unknown>) {
@@ -88,16 +111,36 @@ export function ProfilePanel() {
 
   return (
     <div className="mt-6 space-y-8">
-      <form onSubmit={saveName} noValidate className="space-y-3">
-        <Field id="profile-name" label="First name" hint="Only your first name is shown to others.">
-          <Input id="profile-name" autoComplete="given-name" maxLength={40} value={name} onChange={(e) => (setName(e.target.value), setSaved(false))} />
-        </Field>
-        <Button type="submit" variant="outline" className="h-11 rounded-lg px-5 text-base font-semibold">
-          {saved ? "Saved" : "Save"}
-        </Button>
-      </form>
+      <p className="text-base font-semibold text-brand-text">{side === "traveler" ? "You're traveling" : "You're receiving"}</p>
 
-      <VerificationStatus />
+      {(side === "receiver" || askName) && (
+        <form onSubmit={saveName} noValidate className="space-y-3">
+          <Field id="profile-name" label="First name" hint={askName ? "Travelers see this name when you receive." : "Only your first name is shown to others."}>
+            <Input id="profile-name" autoComplete="given-name" maxLength={40} value={name} onChange={(e) => (setName(e.target.value), setSaved(false))} />
+          </Field>
+          <Button type="submit" variant="outline" className="h-11 rounded-lg px-5 text-base font-semibold">
+            {askName ? "Save and switch to receiving" : saved ? "Saved" : "Save"}
+          </Button>
+        </form>
+      )}
+
+      {side === "traveler" && (
+        <div className="space-y-1.5">
+          <p className="text-base font-semibold">Name</p>
+          <p className="text-base">{givenName ?? <span className="text-muted-foreground">Shown once you&apos;re verified</span>}</p>
+          {givenName && <p className="text-[13px] text-muted-foreground">From your passport</p>}
+        </div>
+      )}
+
+      {side && <PhotoUpload key={side} side={side} />}
+
+      {side === "traveler" && <VerificationStatus />}
+
+      {side && !askName && (
+        <Button variant="outline" className="h-11 rounded-lg px-5 text-base font-semibold" onClick={() => switchTo(side === "traveler" ? "receiver" : "traveler")}>
+          {side === "traveler" ? "Switch to receiving" : "Switch to traveling"}
+        </Button>
+      )}
 
       <section aria-labelledby="signin-methods" className="space-y-4">
         <h2 id="signin-methods" className="text-lg font-bold">

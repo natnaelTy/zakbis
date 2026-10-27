@@ -9,12 +9,25 @@ import { TelegramButton } from "@/components/auth/telegram-button";
 import { GoogleButton } from "@/components/auth/google-button";
 import { createClient } from "@/lib/supabase/client";
 import { isInternalEmail, maskEmail } from "@/lib/auth-email";
+import type { Side } from "@/lib/sides";
+import { notifySideChanged } from "@/components/auth/use-side";
 
-type Step = "choose" | "code" | "name";
+type Step = "choose" | "code" | "side" | "name";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Signs the user in (Telegram or email code), then makes sure a profile with a first name exists, then calls onDone. */
-export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boolean; onOpenChange: (open: boolean) => void; heading: string; onDone: () => void }) {
+/** Signs the user in (Telegram, Google or email code), then makes sure the account has a side (and a name for receivers), then calls onDone. */
+export function SignInSheet({
+  open,
+  onOpenChange,
+  heading,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  heading: string;
+  /** isNew: the side was picked in this sheet just now. */
+  onDone: (side: Side, isNew: boolean) => void;
+}) {
   const [step, setStep] = useState<Step>("choose");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -23,13 +36,13 @@ export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boo
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(0);
 
-  // Reopening after an earlier sign-in without a name goes straight to the name step.
+  // Reopening after an earlier sign-in without a side goes straight to the side question.
   useEffect(() => {
     if (!open) return;
     setError(undefined);
     createClient()
       .auth.getUser()
-      .then(({ data }) => setStep(data.user ? "name" : "choose"));
+      .then(({ data }) => setStep(data.user ? "side" : "choose"));
   }, [open]);
 
   useEffect(() => {
@@ -42,10 +55,35 @@ export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boo
     const supabase = createClient();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return setError("Sign-in didn't complete. Please try again.");
-    const { data: profile } = await supabase.from("profiles").select("id, first_name").eq("id", data.user.id).maybeSingle();
-    if (profile) return onDone();
+    const { data: profile } = await supabase.from("profiles").select("active_side").eq("id", data.user.id).maybeSingle();
+    if (profile?.active_side) {
+      notifySideChanged(); // the header and tab bar were showing the signed-out state
+      return onDone(profile.active_side as Side, false);
+    }
     setName(fallbackName);
-    setStep("name");
+    setStep("side");
+  }
+
+  /** Writes the caller's profile row, creating it if this is a new account. */
+  async function saveProfile(fields: { active_side: Side; first_name?: string }) {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return false;
+    const { data: updated, error } = await supabase.from("profiles").update(fields).eq("id", data.user.id).select("id");
+    if (error) return false;
+    if (updated?.length) return true;
+    return !(await supabase.from("profiles").insert({ id: data.user.id, ...fields })).error;
+  }
+
+  async function pickSide(side: Side) {
+    setError(undefined);
+    if (side === "receiver") return setStep("name");
+    setBusy(true);
+    const ok = await saveProfile({ active_side: "traveler" });
+    setBusy(false);
+    if (!ok) return setError("Couldn't save your choice. Please try again.");
+    notifySideChanged();
+    onDone("traveler", true);
   }
 
   async function onTelegram(user: Record<string, unknown>) {
@@ -88,22 +126,22 @@ export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boo
     const first = name.trim();
     if (!first || first.length > 40) return setError("Enter your first name");
     setBusy(true);
-    const supabase = createClient();
-    const { data } = await supabase.auth.getUser();
-    const { error } = data.user ? await supabase.from("profiles").insert({ id: data.user.id, first_name: first }) : { error: { message: "signed out" } };
+    const ok = await saveProfile({ active_side: "receiver", first_name: first });
     setBusy(false);
-    if (error) return setError("Couldn't save your name. Please try again.");
-    onDone();
+    if (!ok) return setError("Couldn't save your name. Please try again.");
+    notifySideChanged();
+    onDone("receiver", true);
   }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="mx-auto max-w-md rounded-t-2xl px-4 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <SheetHeader className="px-0">
-          <SheetTitle className="text-xl font-bold">{step === "name" ? "What should travelers call you?" : heading}</SheetTitle>
+          <SheetTitle className="text-xl font-bold">{step === "name" ? "What should travelers call you?" : step === "side" ? "How will you use Zakbis?" : heading}</SheetTitle>
           <SheetDescription className="text-base">
             {step === "choose" && "Use Telegram or Google, or get a code by email."}
             {step === "code" && `We sent a code to ${maskEmail(email.trim())}`}
+            {step === "side" && "You can switch any time from Profile."}
             {step === "name" && "Only your first name is shown to others."}
           </SheetDescription>
         </SheetHeader>
@@ -153,6 +191,22 @@ export function SignInSheet({ open, onOpenChange, heading, onDone }: { open: boo
               </button>
             </div>
           </form>
+        )}
+
+        {step === "side" && (
+          <div className="space-y-3">
+            <Button disabled={busy} className="h-12 w-full rounded-lg text-base font-bold" onClick={() => pickSide("traveler")}>
+              I&apos;m traveling to Addis
+            </Button>
+            <Button variant="outline" disabled={busy} className="h-12 w-full rounded-lg text-base font-semibold" onClick={() => pickSide("receiver")}>
+              I need items from abroad
+            </Button>
+            {error && (
+              <p role="alert" className="text-base text-destructive">
+                {error}
+              </p>
+            )}
+          </div>
         )}
 
         {step === "name" && (
