@@ -14,7 +14,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   if (!trip) notFound();
 
   return (
-    <AppShell active="Trips">
+    <AppShell active="Explore">
       <main className="px-4 md:mx-auto md:max-w-xl md:px-0">
         <Link href="/" className="-ml-1 inline-flex items-center text-base font-medium text-brand-text">
           <ChevronLeft aria-hidden className="size-5" /> Trips

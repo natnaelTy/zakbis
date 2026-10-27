@@ -21,8 +21,8 @@ insert into profiles (id, first_name, is_admin) values
   ('00000000-0000-0000-0000-0000000000a1', 'Admin', true), ('00000000-0000-0000-0000-0000000000b1', 'Meron', false),
   ('00000000-0000-0000-0000-0000000000c1', 'Hana', false), ('00000000-0000-0000-0000-0000000000d1', 'Sami', false);
 insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
-insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg) values
-  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live');
 insert into payout_accounts values ('00000000-0000-0000-0000-0000000000c1', 'telebirr', 'Hana', '0922000002', null);
 
 -- I1: an offer whose trip has gone stale can't be accepted; neither can a trip request on a stale trip.
@@ -42,13 +42,17 @@ grant all on ids to authenticated;
 insert into ids select make_offer('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 500);
 select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment');
 reset role;
+alter table trips disable trigger trips_guard; -- time travel, not an owner edit
 update trips set shop_by = addis_today() - 2, arrival_date = addis_today() - 1 where id = '10000000-0000-0000-0000-000000000001';
+alter table trips enable trigger trips_guard;
 set local role authenticated;
 select must_fail($$select advance_request('20000000-0000-0000-0000-000000000002', 'awaiting_payment')$$, 'accept trip request on a stale trip', 'no longer');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 select must_fail($$select accept_offer((select id from ids))$$, 'accept offer on a stale trip', 'no longer');
 reset role;
+alter table trips disable trigger trips_guard; -- time travel, not an owner edit
 update trips set shop_by = addis_today() + 3, arrival_date = addis_today() + 5 where id = '10000000-0000-0000-0000-000000000001';
+alter table trips enable trigger trips_guard;
 set local role authenticated;
 
 -- I3: receipts and escrow proofs must be the caller's own files.

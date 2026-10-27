@@ -19,8 +19,8 @@ insert into auth.users (id) values
 insert into profiles (id, first_name) values
   ('00000000-0000-0000-0000-0000000000b1', 'Meron'), ('00000000-0000-0000-0000-0000000000c1', 'Hana'), ('00000000-0000-0000-0000-0000000000d1', 'Sami');
 insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
-insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg) values
-  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live');
 
 -- Travelers must be verified to be listed, offer or receive trip requests.
 select test_verify('00000000-0000-0000-0000-0000000000c1');

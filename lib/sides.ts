@@ -1,15 +1,14 @@
 export type Side = "receiver" | "traveler";
-export type TabLabel = "Trips" | "Requests" | "Post" | "Activity" | "Profile";
-
-const shared = [
-  { href: "/activity", label: "Activity" },
-  { href: "/profile", label: "Profile" },
-] as const;
+export type TabLabel = "Explore" | "Orders" | "Post" | "Inbox" | "Profile";
 
 export function tabsFor(side: Side): { href: string; label: TabLabel }[] {
-  return side === "receiver"
-    ? [{ href: "/", label: "Trips" }, { href: "/post", label: "Post" }, ...shared]
-    : [{ href: "/requests", label: "Requests" }, { href: "/trips/new", label: "Post" }, ...shared];
+  return [
+    { href: side === "receiver" ? "/" : "/requests", label: "Explore" },
+    { href: "/orders", label: "Orders" },
+    { href: side === "receiver" ? "/post" : "/trips/new", label: "Post" },
+    { href: "/inbox", label: "Inbox" },
+    { href: "/profile", label: "Profile" },
+  ];
 }
 
 export const homeFor = (side: Side) => tabsFor(side)[0].href;

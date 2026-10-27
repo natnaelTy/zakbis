@@ -24,11 +24,11 @@ insert into profiles (id, first_name, is_admin) values
   ('00000000-0000-0000-0000-0000000000c3', 'Selam', false), ('00000000-0000-0000-0000-0000000000c4', 'Dawit', false);
 update auth.users set phone = '251911000001', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
 insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5), ('USD', 141.4);
-insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg) values
-  ('10000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6),
-  ('10000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000c2', 'GB', 'London', 'LHR', addis_today() + 3, addis_today() + 5, 8),
-  ('10000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-0000000000c3', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 12, 9),
-  ('10000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-0000000000c4', 'US', 'Washington, DC', 'IAD', addis_today() + 4, addis_today() + 6, 5);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
+  ('10000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live'),
+  ('10000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000c2', 'GB', 'London', 'LHR', addis_today() + 3, addis_today() + 5, 8, 'live'),
+  ('10000000-0000-0000-0000-0000000000c3', '00000000-0000-0000-0000-0000000000c3', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 12, 9, 'live'),
+  ('10000000-0000-0000-0000-0000000000c4', '00000000-0000-0000-0000-0000000000c4', 'US', 'Washington, DC', 'IAD', addis_today() + 4, addis_today() + 6, 5, 'live');
 
 -- Receiver posts an open request, trying to set a reward.
 -- Travelers must be verified to be listed, offer or receive trip requests.

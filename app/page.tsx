@@ -19,7 +19,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const shown = selected.code ? trips.filter((t) => t.originCountry === selected.code) : trips;
 
   return (
-    <AppShell active="Trips">
+    <AppShell active="Explore">
       <main className="px-4 md:px-0">
         <div className="flex items-baseline justify-between pt-2">
           <h1 className="text-2xl font-bold tracking-[-0.02em]">Trips to Addis</h1>

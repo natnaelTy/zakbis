@@ -1,0 +1,24 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { AppShell } from "@/components/app-shell";
+import { createClient } from "@/lib/supabase/server";
+import { TripQueue } from "./trip-queue";
+
+// Admins only; everyone else gets a 404 so the page's existence isn't advertised.
+export default async function AdminTripsPage() {
+  const supabase = await createClient();
+  const { data: admin } = await supabase.rpc("is_admin");
+  if (admin !== true) notFound();
+
+  return (
+    <AppShell active="Profile">
+      <main className="px-4 md:px-0">
+        <h1 className="pt-2 text-2xl font-bold tracking-[-0.02em]">Trip checks</h1>
+        <Link href="/admin/verifications" className="text-base font-medium text-brand-text">
+          Traveler verifications
+        </Link>
+        <TripQueue />
+      </main>
+    </AppShell>
+  );
+}

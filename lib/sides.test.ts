@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { afterSignIn, homeFor, tabsFor } from "./sides.ts";
 
-test("receiver tabs", () => assert.deepEqual(tabsFor("receiver").map((t) => t.label), ["Trips", "Post", "Activity", "Profile"]));
-test("traveler tabs", () => assert.deepEqual(tabsFor("traveler").map((t) => t.href), ["/requests", "/trips/new", "/activity", "/profile"]));
+test("receiver tabs", () => assert.deepEqual(tabsFor("receiver").map((t) => t.label), ["Explore", "Orders", "Post", "Inbox", "Profile"]));
+test("traveler tabs", () => assert.deepEqual(tabsFor("traveler").map((t) => t.href), ["/requests", "/orders", "/trips/new", "/inbox", "/profile"]));
 test("each side's home is its first tab", () => {
   assert.equal(homeFor("traveler"), "/requests");
   assert.equal(homeFor("receiver"), "/");

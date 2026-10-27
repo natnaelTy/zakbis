@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ListChecks, Plane, Plus, ShoppingBag, User } from "lucide-react";
+import { Compass, Inbox, Package, Plus, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { useSide } from "@/components/auth/use-side";
 import { tabsFor, type TabLabel } from "@/lib/sides";
 import { cn } from "@/lib/utils";
 
-const icons = { Trips: Plane, Requests: ShoppingBag, Post: Plus, Activity: ListChecks, Profile: User };
+const icons = { Explore: Compass, Orders: Package, Post: Plus, Inbox, Profile: User };
 
 /** The active side's tabs; nothing while loading or signed out (the header shows Sign in instead). */
 export function TabBar({ active }: { active: TabLabel }) {
@@ -20,7 +20,7 @@ export function TabBar({ active }: { active: TabLabel }) {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:static md:mx-0 md:max-w-none md:flex-1 md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none"
     >
-      <ul className="grid grid-cols-4 md:flex md:items-center md:gap-1">
+      <ul className="grid grid-cols-5 md:flex md:items-center md:gap-1">
         {tabsFor(side).map(({ href, label }) => {
           const Icon = icons[label];
           const current = label === active;
