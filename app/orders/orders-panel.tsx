@@ -8,14 +8,13 @@ import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { useSide } from "@/components/auth/use-side";
 import { StatusPill } from "@/components/trips/status-pill";
+import { OrderList } from "@/components/orders/order-list";
 import { createClient } from "@/lib/supabase/client";
 import { addisToday, countryLabel } from "@/lib/open-requests";
 import type { MyTrip } from "@/lib/trip-post";
 import { cn } from "@/lib/utils";
 
-const empty = <p className="mt-6 text-base text-muted-foreground">No orders yet</p>;
-
-/** Receivers: their orders (none yet). Travelers: Trips | Orders, trips first. */
+/** Receivers: their orders. Travelers: Trips | Orders, trips first. */
 export function OrdersPanel() {
   const { side } = useSide();
   const { requireAuth, sheet } = useRequireAuth("Sign in to Zakbis");
@@ -41,7 +40,7 @@ export function OrdersPanel() {
         {sheet}
       </div>
     );
-  if (side === "receiver") return empty;
+  if (side === "receiver") return <OrderList side="receiver" />;
 
   const today = addisToday(new Date());
   const upcoming = (t: MyTrip) => t.status !== "cancelled" && t.arrival_date >= today;
@@ -65,7 +64,7 @@ export function OrdersPanel() {
       </div>
 
       {tab === "orders" ? (
-        empty
+        <OrderList side="traveler" />
       ) : failed ? (
         <p role="alert" className="mt-6 text-base text-destructive">
           Couldn&apos;t load your trips. Please reload.

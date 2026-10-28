@@ -15,6 +15,9 @@ import type { MyTrip } from "@/lib/trip-post";
 
 const day = (d: string) => format(parseISO(d), "d MMM yyyy");
 const action = "h-11 rounded-lg px-5 text-base font-semibold";
+// Database rules worth showing as written (trips_rules in 0009).
+const known = (m: string | undefined, fallback: string) =>
+  m?.includes("paid orders") ? "This trip has paid orders. Contact support to change it." : m?.includes("please remove") ? "Please remove phone numbers, @handles, emails and links." : fallback;
 
 /** The traveler's own trip: details, ticket, and what they can do in its current state. */
 export function TripDetail({ id }: { id: string }) {
@@ -59,7 +62,7 @@ export function TripDetail({ id }: { id: string }) {
     setBusy(true);
     const { error } = await createClient().from("trips").update({ free_kg: n, note: note.trim() || null }).eq("id", t.id);
     setBusy(false);
-    if (error) return setMessage({ text: "Couldn't save. Please try again.", error: true });
+    if (error) return setMessage({ text: known(error.message, "Couldn't save. Please try again."), error: true });
     await load();
     setMessage({ text: "Saved" });
   }
@@ -68,7 +71,7 @@ export function TripDetail({ id }: { id: string }) {
     setBusy(true);
     const { error } = await createClient().from("trips").update({ status: "cancelled" }).eq("id", t.id);
     setBusy(false);
-    if (error) return setMessage({ text: "Couldn't cancel. Please try again.", error: true });
+    if (error) return (setMode("view"), setMessage({ text: known(error.message, "Couldn't cancel. Please try again."), error: true }));
     await load();
   }
 

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 const HEADINGS = ["Your ticket", "Your trip", "Space and shopping"];
 // trips_guard's messages, shown as written; anything else gets the generic error.
-const KNOWN = ["verify before posting a trip", "your passport must be valid until you land", "upload your ticket", "agree to the customs rules", "cancelled trips are final"];
+const KNOWN = ["verify before posting a trip", "your passport must be valid until you land", "upload your ticket", "agree to the customs rules", "cancelled trips are final", "this trip has paid orders. Contact support to change it", "please remove phone numbers, @handles, emails and links"];
 const blank: TripDraft = { origin_country: "", origin_city: "", origin_airport: "", arrival_date: "", shop_by: "", free_kg: "", note: "", customs: false, crew: false, proof_kind: "ticket" };
 
 export type TripFormInitial = Partial<TripDraft> & { id: string; proof_path: string; status?: TripStatus };
