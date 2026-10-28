@@ -36,8 +36,9 @@ insert into requests (id, kind, trip_id, item_name, item_url, unit_price, curren
 do $$ begin assert (select count(*) from storage.objects where bucket_id = 'photos') = 0, 'no real photo before acceptance'; end $$;
 
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment');
+select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800);
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select accept_offer(o.id) from offers o where o.request_id = '20000000-0000-0000-0000-000000000001';
 do $$ begin assert (select count(*) from storage.objects where bucket_id = 'photos') = 1, 'real photo after acceptance'; end $$;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d1';
 do $$ begin assert (select count(*) from storage.objects where bucket_id = 'photos') = 0, 'stranger never sees the photo'; end $$;

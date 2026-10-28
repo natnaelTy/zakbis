@@ -79,8 +79,9 @@ insert into requests (id, kind, trip_id, item_name, item_url, unit_price, curren
   ('20000000-0000-0000-0000-000000000001', 'trip', '10000000-0000-0000-0000-000000000001', 'Perfume', 'https://zara.com/x', 120, 'AED', 800),
   ('20000000-0000-0000-0000-000000000002', 'trip', '10000000-0000-0000-0000-000000000001', 'Shoes', 'https://a.com/s', 50, 'AED', 300);
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment');
+select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800);
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select accept_offer(o.id) from offers o where o.request_id = '20000000-0000-0000-0000-000000000001';
 insert into payments (request_id, kind, amount_etb, proof_path) values
   ('20000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000b1/proof.jpg');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
@@ -88,7 +89,7 @@ select advance_request('20000000-0000-0000-0000-000000000001', 'paid');
 select decide_verification('00000000-0000-0000-0000-0000000000c1', false, 'Other');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000002', 'awaiting_payment')$$, 'revoked traveler accepts a new request', 'not verified');
+select must_fail($$select make_offer('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 300)$$, 'revoked traveler prices a new request', 'not verified');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 do $$ begin
   assert (select status from requests where id = '20000000-0000-0000-0000-000000000001') = 'purchased', 'paid deal carries on';

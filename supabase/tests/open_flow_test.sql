@@ -79,7 +79,7 @@ begin
   select * into r from requests where id = '30000000-0000-0000-0000-000000000001';
   assert (r.reward_etb, r.fee_etb, r.status) = (600, 54, 'awaiting_payment'::request_status), 'reward and fee from the accepted offer';
   assert r.traveler_id = '00000000-0000-0000-0000-0000000000c1' and r.trip_id = '10000000-0000-0000-0000-0000000000c1', 'traveler and trip from the offer';
-  assert (select status from offers where id = (select id from ids where name = 'dawit')) = 'rejected', 'other offers rejected';
+  assert (select status from offers where id = (select id from ids where name = 'dawit')) = 'closed', 'other offers closed';
 end $$;
 select must_fail($$select accept_offer((select id from ids where name = 'dawit'))$$, 'accept twice');
 

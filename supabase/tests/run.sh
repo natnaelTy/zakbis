@@ -9,7 +9,7 @@ rm -rf "$data"; "$bin/initdb" -D "$data" -U postgres -A trust >/dev/null
 "$bin/pg_ctl" -D "$data" -o "-p $port -k '' -c listen_addresses=127.0.0.1" -l "$data/log" -w start >/dev/null
 trap '"$bin/pg_ctl" -D "$data" -m fast stop >/dev/null; rm -rf "$data"' EXIT
 psql -f "$here/stubs.sql" || { echo "FAIL stubs"; exit 1; }
-for m in "$root"/supabase/migrations/*.sql; do psql -f "$m" || { echo "FAIL migration $(basename "$m")"; exit 1; }; done
+for m in "$root"/supabase/migrations/*.sql; do psql -1 -f "$m" || { echo "FAIL migration $(basename "$m")"; exit 1; }; done
 psql -f "$here/helpers.sql" || { echo "FAIL helpers"; exit 1; }
 failed=0
 for t in "$here"/*_test.sql; do

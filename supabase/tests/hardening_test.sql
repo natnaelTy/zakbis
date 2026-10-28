@@ -40,13 +40,16 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 create temp table ids (id uuid);
 grant all on ids to authenticated;
 insert into ids select make_offer('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 500);
-select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment');
+select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800);
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select accept_offer(o.id) from offers o where o.request_id = '20000000-0000-0000-0000-000000000001';
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 reset role;
 alter table trips disable trigger trips_guard; -- time travel, not an owner edit
 update trips set shop_by = addis_today() - 2, arrival_date = addis_today() - 1 where id = '10000000-0000-0000-0000-000000000001';
 alter table trips enable trigger trips_guard;
 set local role authenticated;
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000002', 'awaiting_payment')$$, 'accept trip request on a stale trip', 'no longer');
+select must_fail($$select make_offer('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 300)$$, 'price a trip request on a stale trip', 'no longer');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 select must_fail($$select accept_offer((select id from ids))$$, 'accept offer on a stale trip', 'no longer');
 reset role;

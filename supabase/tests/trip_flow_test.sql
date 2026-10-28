@@ -49,7 +49,7 @@ begin
   assert r.receiver_id = '00000000-0000-0000-0000-0000000000b1', 'insert forces receiver';
   assert r.fx_rate = 38.5, 'insert locks the admin rate';
   assert r.traveler_id = '00000000-0000-0000-0000-0000000000c1', 'traveler comes from the trip';
-  assert (r.item_etb, r.fee_etb, r.total_etb, r.payout_etb) = (4620, 72, 5420, 5348), 'Hana''s numbers';
+  assert r.item_etb = 4620 and r.reward_etb is null, 'item price set; the traveler names the reward';
 end $$;
 select must_fail($$insert into requests (kind, trip_id, item_name, item_url, unit_price, currency, reward_etb)
   values ('trip', '10000000-0000-0000-0000-000000000001', 'X', 'https://a.com', 10, 'USD', 100)$$, 'currency without a rate', 'no fx rate');
@@ -64,24 +64,29 @@ select must_fail($$insert into requests (kind, trip_id, item_name, item_url, uni
 
 -- Strangers and anon can't move it.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d1';
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment')$$, 'stranger accepts');
+select must_fail($$select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800)$$, 'stranger prices');
 set local role anon;
 set local request.jwt.claim.sub = '';
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment')$$, 'anon accepts');
+select must_fail($$select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800)$$, 'anon prices');
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') is null, 'anon gets no phone'; end $$;
 
--- Traveler accepts one, declines another.
+-- Traveler prices two (the receiver accepts), declines another.
 set local role authenticated;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'awaiting_payment');
-select advance_request('20000000-0000-0000-0000-000000000002', 'declined');
-select advance_request('20000000-0000-0000-0000-000000000005', 'awaiting_payment');
+select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800);
+select decline_request('20000000-0000-0000-0000-000000000002', 'other');
+select make_offer('20000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001', 500);
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select accept_offer(o.id) from offers o where o.request_id in ('20000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005');
+do $$ begin
+  assert (select (item_etb, fee_etb, total_etb, payout_etb) = (4620, 72, 5420, 5348) from requests where id = '20000000-0000-0000-0000-000000000001'), 'Hana''s numbers';
+end $$;
 
 -- Receiver cancels one before paying, then uploads proof and can no longer cancel.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
-select advance_request('20000000-0000-0000-0000-000000000003', 'cancelled');
+select cancel_request('20000000-0000-0000-0000-000000000003');
 insert into payments (request_id, kind, amount_etb, proof_path) values ('20000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000b1/proof.jpg');
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'cancelled')$$, 'cancel with pending proof');
+select must_fail($$select cancel_request('20000000-0000-0000-0000-000000000001')$$, 'cancel with pending proof');
 select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'paid')$$, 'receiver marks paid');
 do $$ begin
   assert (select amount_etb from payments where request_id = '20000000-0000-0000-0000-000000000001') = 5420, 'escrow amount comes from the request';
