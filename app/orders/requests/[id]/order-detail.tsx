@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { btn, OfferCard, ReasonPicker, type Offer, type OfferEvent } from "@/components/orders/offer-card";
+import { PaymentSection, type LatestPayment } from "@/components/orders/payment-section";
 import { createClient } from "@/lib/supabase/client";
 import { etb, parseEtb } from "@/lib/money";
 import { countryLabel, type Country } from "@/lib/open-requests";
@@ -36,6 +37,7 @@ export function OrderDetail({ id }: { id: string }) {
   const [events, setEvents] = useState<OfferEvent[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [receiverName, setReceiverName] = useState("Receiver");
+  const [payment, setPayment] = useState<LatestPayment>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -54,16 +56,18 @@ export function OrderDetail({ id }: { id: string }) {
     const { data: o } = await supabase.from("offers").select("*").eq("request_id", id).order("created_at");
     const list = (o as Offer[] | null) ?? [];
     const travelerIds = [...new Set([...list.map((x) => x.traveler_id), r.traveler_id].filter(Boolean))] as string[];
-    const [ev, tn, rp] = await Promise.all([
+    const [ev, tn, rp, pay] = await Promise.all([
       list.length ? supabase.from("offer_events").select("*").in("offer_id", list.map((x) => x.id)).order("created_at") : Promise.resolve({ data: [] }),
       supabase.from("traveler_names").select("traveler_id, given_name").in("traveler_id", travelerIds),
       supabase.from("profiles").select("first_name").eq("id", r.receiver_id).maybeSingle(),
+      supabase.from("payments").select("id, status, reject_reason").eq("request_id", id).eq("kind", "escrow").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     setReq(r as Request);
     setOffers(list);
     setEvents((ev.data as OfferEvent[] | null) ?? []);
     setNames(Object.fromEntries((tn.data ?? []).map((n) => [n.traveler_id, n.given_name])));
     setReceiverName(rp.data?.first_name ?? "Receiver");
+    setPayment((pay.data as LatestPayment) ?? null);
     setMode(null);
   }, [id]);
 
@@ -113,7 +117,7 @@ export function OrderDetail({ id }: { id: string }) {
   const priceless = r.kind === "trip" && offers.length === 0;
   const thumb = r.screenshot_path ? createClient().storage.from("screenshots").getPublicUrl(r.screenshot_path).data.publicUrl : null;
   const closed = ["declined", "expired", "cancelled"].includes(r.status);
-  const canCancel = viewer === "receiver" && (r.status === "open" || r.status === "awaiting_payment");
+  const canCancel = viewer === "receiver" && (r.status === "open" || (r.status === "awaiting_payment" && payment?.status !== "pending"));
 
   function closedLine() {
     if (viewer === "traveler" && mine && mine.status !== "accepted" && mine.status !== "pending") {
@@ -240,7 +244,12 @@ export function OrderDetail({ id }: { id: string }) {
         </div>
       )}
 
-      {r.status === "awaiting_payment" && viewer === "traveler" && <p className="mt-5 text-base text-muted-foreground">Waiting for {receiverName} to pay</p>}
+      {r.status === "awaiting_payment" && viewer === "receiver" && r.total_etb && (
+        <PaymentSection requestId={r.id} total={r.total_etb} dueAt={r.payment_due_at} latest={payment} now={now} onDone={load} />
+      )}
+      {r.status === "awaiting_payment" && viewer === "traveler" && (
+        <p className="mt-5 text-base text-muted-foreground">{payment?.status === "pending" ? "Payment sent. Zakbis is checking it." : `Waiting for ${receiverName} to pay`}</p>
+      )}
       {["paid", "purchased", "landed", "delivered", "paid_out"].includes(r.status) && (
         <p className="mt-5 rounded-xl border bg-card p-4 text-base font-semibold">
           {viewer === "receiver" ? `Paid. ${travelerName(r.traveler_id)} will go shopping.` : `Paid. Go shopping for ${r.item_name}.`}

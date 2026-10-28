@@ -14,9 +14,10 @@ export default async function AdminVerificationsPage() {
     <AppShell active="Profile">
       <main className="px-4 md:px-0">
         <h1 className="pt-2 text-2xl font-bold tracking-[-0.02em]">Traveler verifications</h1>
-        <Link href="/admin/trips" className="text-base font-medium text-brand-text">
-          Trip checks
-        </Link>
+        <nav className="flex gap-4 text-base font-medium text-brand-text">
+          <Link href="/admin/trips">Trip checks</Link>
+          <Link href="/admin/payments">Payment checks</Link>
+        </nav>
         <ReviewList />
       </main>
     </AppShell>
