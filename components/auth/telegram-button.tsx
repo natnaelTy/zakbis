@@ -26,6 +26,7 @@ export function TelegramButton({ onAuth }: { onAuth: (user: Record<string, unkno
     script.setAttribute("data-size", "large");
     script.setAttribute("data-radius", "10");
     script.setAttribute("data-onauth", `${callback}(user)`);
+    script.setAttribute("data-request-access", "write"); // lets the Zakbis bot send order updates
     el.appendChild(script);
     return () => {
       delete (window as unknown as Record<string, unknown>)[callback];

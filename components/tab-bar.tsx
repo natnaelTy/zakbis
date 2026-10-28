@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Add, Box, Compass, Inbox, User } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { useSide } from "@/components/auth/use-side";
+import { createClient } from "@/lib/supabase/client";
 import { tabsFor, type TabLabel } from "@/lib/sides";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +15,14 @@ const icons = { Explore: Compass, Orders: Box, Post: Add, Inbox, Profile: User }
 /** The active side's tabs; nothing while loading or signed out (the header shows Sign in instead). */
 export function TabBar({ active }: { active: TabLabel }) {
   const { side } = useSide();
+  const [unread, setUnread] = useState(false);
+  // AppShell renders per page, so this re-checks on every navigation; no live push for now.
+  useEffect(() => {
+    if (!side || active === "Inbox") return setUnread(false);
+    void createClient()
+      .rpc("unread_notes")
+      .then(({ data }) => setUnread(((data as { side: string; n: number }[] | null) ?? []).some((u) => u.side === side && u.n > 0)));
+  }, [side, active]);
   if (!side) return null;
   // One nav: a bottom tab bar on phones, inline in the header from md up. On phones Post is a raised green button (user's choice); on desktop it is a regular pill.
   return (
@@ -38,14 +48,15 @@ export function TabBar({ active }: { active: TabLabel }) {
               >
                 <span
                   className={cn(
-                    "flex h-7 w-12 items-center justify-center rounded-full md:h-auto md:w-auto",
+                    "relative flex h-7 w-12 items-center justify-center rounded-full md:h-auto md:w-auto",
                     current && !isPost && "bg-accent md:bg-transparent",
                     isPost && "-mt-5 size-12 w-12 bg-primary text-primary-foreground shadow-[0_4px_12px_rgb(20_36_29/0.18)] ring-4 ring-card md:mt-0 md:size-auto md:bg-transparent md:text-current md:shadow-none md:ring-0",
                   )}
                 >
                   <Icon aria-hidden className={cn("size-5 md:size-4", isPost && "size-6 md:size-4")} />
+                  {label === "Inbox" && unread && <span aria-hidden className="absolute top-0.5 right-2.5 size-2 rounded-full bg-destructive ring-2 ring-card md:-top-0.5 md:-right-0.5" />}
                 </span>
-                {label}
+                {label === "Inbox" && unread ? <span>Inbox<span className="sr-only">, new updates</span></span> : label}
               </Link>
             </li>
           );
