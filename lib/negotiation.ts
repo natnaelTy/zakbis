@@ -13,9 +13,11 @@ export const DECLINE_REASONS: { key: DeclineReason; label: string }[] = [
 ];
 export const reasonLabel = (key: string | null) => DECLINE_REASONS.find((r) => r.key === key)?.label;
 
-// Same patterns as has_contact() in migration 0009: 7+ digits (separators allowed), @handles, emails, links.
+// Same patterns as has_contact() in migration 0009: Ethiopian phone numbers (09/07…, 251…), +international numbers,
+// @handles, emails, links. Dates and amounts (2026-11-03, 1 500 000) pass.
 const CONTACT = [
-  /\+?\d(?:[\s.()-]*\d){6,}/,
+  /(?:\+?251|(?:^|\D)0)[ -]?[79](?:[ -]?\d){7}/,
+  /\+\d(?:[ -]?\d){7,}/,
   /(?:^|[^\w])@\w{3,}/,
   /[\w.+-]+@[\w-]+\.[a-z]+/i,
   /https?:\/\/|www\.|t\.me\/|wa\.me\//i,

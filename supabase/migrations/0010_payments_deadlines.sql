@@ -26,6 +26,7 @@ begin
   if r.status <> 'awaiting_payment' then raise exception 'this order is not waiting for payment'; end if;
   if has_pending_escrow(r.id) then raise exception 'we already have your screenshot; we''re checking it'; end if;
   if r.payment_due_at < now() then raise exception 'time is up'; end if;
+  if not exists (select 1 from trips where id = r.trip_id and status = 'live') then raise exception 'this trip is no longer open'; end if;
   if p_method is null or p_method not in ('telebirr', 'bank') then raise exception 'choose Telebirr or bank'; end if;
   if p_proof is null or split_part(p_proof, '/', 1) <> auth.uid()::text
      or not exists (select 1 from storage.objects where bucket_id = 'proofs' and name = p_proof) then
@@ -48,7 +49,10 @@ begin
   if not found then raise exception 'this payment is not waiting for a check'; end if;
   perform 1 from requests where id = p.request_id for update;
   select * into p from payments where id = p_payment;
-  if p.status <> 'pending' or p.kind <> 'escrow' then raise exception 'this payment is not waiting for a check'; end if;
+  -- The order itself must still be waiting: an admin may have cancelled it while the screenshot sat in the queue.
+  if p.status <> 'pending' or p.kind <> 'escrow' or (select status from requests where id = p.request_id) <> 'awaiting_payment' then
+    raise exception 'this payment is not waiting for a check';
+  end if;
   return p;
 end $$;
 
@@ -67,6 +71,8 @@ begin
     perform notify(r.traveler_id, 'traveler', r.id, format('%s paid for %s. Go shopping!', receiver_name(r.receiver_id), r.item_name));
   else
     if coalesce(trim(p_reason), '') = '' then raise exception 'a reason is required to reject'; end if;
+    -- A re-upload would be for a trip that's gone.
+    if not exists (select 1 from trips where id = r.trip_id and status = 'live') then raise exception 'the trip changed: refund instead'; end if;
     update payments set status = 'rejected', reject_reason = trim(p_reason), decided_at = now(), decided_by = auth.uid() where id = p.id;
     -- The receiver gets back the time that was left when they uploaded, but never less than 2 hours.
     update requests set payment_due_at = now() + greatest(coalesce(payment_left, interval '0'), interval '2 hours'),

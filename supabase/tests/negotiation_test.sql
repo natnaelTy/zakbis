@@ -73,6 +73,18 @@ end $$;
 select must_fail($$select ask('x', 'trip', '10000000-0000-0000-0000-000000000001', 'call 0911 234 567')$$, 'phone in item name', 'please remove phone numbers');
 select must_fail($$select ask('x', 'trip', '10000000-0000-0000-0000-000000000001', 'Shoes', '@hana_b')$$, 'handle in notes', 'please remove phone numbers');
 select ask('iphone', 'trip', '10000000-0000-0000-0000-000000000001', 'iPhone 15 Pro 256GB');
+select ask('dated', 'trip', '10000000-0000-0000-0000-000000000001', 'Dates', 'landing 2026-11-03, 03.11.2026, 1 500 000 ETB');
+reset role;
+alter table trips disable trigger trips_rules; -- a note saved before the rule existed
+set local request.jwt.claim.sub = '';
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status, note) values
+  ('10000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live', 'call 0911 234 567');
+alter table trips enable trigger trips_rules;
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+update trips set status = 'cancelled' where id = '10000000-0000-0000-0000-000000000009';
+do $$ begin assert (select status from my_trips() where id = '10000000-0000-0000-0000-000000000009') = 'cancelled', 'an old note never locks the trip'; end $$;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 select must_fail($$update trips set note = 'wa.me/251911' where id = '10000000-0000-0000-0000-000000000001'$$, 'link in trip note', 'please remove phone numbers');
 

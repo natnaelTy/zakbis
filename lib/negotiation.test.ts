@@ -11,7 +11,7 @@ test("contact details are caught", () => {
     assert.equal(hasContactDetails(t), true, t);
 });
 test("ordinary item text passes", () => {
-  for (const t of ["iPhone 15 Pro 256GB", "size 42", "2 pcs", "Model A2337", "1200 ml", "Nike Air Max 90, white"])
+  for (const t of ["iPhone 15 Pro 256GB", "size 42", "2 pcs", "Model A2337", "1200 ml", "Nike Air Max 90, white", "landing 2026-11-03", "03.11.2026", "1 500 000 ETB", "arrive 2026-07-09 14:30"])
     assert.equal(hasContactDetails(t), false, t);
 });
 

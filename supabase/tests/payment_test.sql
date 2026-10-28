@@ -26,7 +26,8 @@ select test_verify('00000000-0000-0000-0000-0000000000c1');
 insert into storage.objects (bucket_id, name) values
   ('tickets', '00000000-0000-0000-0000-0000000000c1/t.pdf'),
   ('proofs', '00000000-0000-0000-0000-0000000000b1/p1.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000b1/p2.jpg'),
-  ('proofs', '00000000-0000-0000-0000-0000000000b1/p3.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000b1/p4.jpg');
+  ('proofs', '00000000-0000-0000-0000-0000000000b1/p3.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000b1/p4.jpg'),
+  ('proofs', '00000000-0000-0000-0000-0000000000b1/p5.jpg');
 insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status, proof_path) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live', '00000000-0000-0000-0000-0000000000c1/t.pdf'),
   ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 4, addis_today() + 6, 6, 'live', '00000000-0000-0000-0000-0000000000c1/t.pdf');
@@ -115,6 +116,7 @@ do $$ begin
   assert (select trip_changed from payments_to_check() where id = id('pay3')), 'admin sees the trip changed';
 end $$;
 select must_fail($$select decide_payment(id('pay3'), true)$$, 'confirm on a changed trip', 'refund instead');
+select must_fail($$select decide_payment(id('pay3'), false, 'Blurry')$$, 'reject on a changed trip', 'refund instead');
 select mark_refunded(id('pay3'));
 do $$ begin
   assert (select status from payments where id = id('pay3')) = 'refunded', 'refunded';
@@ -134,6 +136,14 @@ update requests set payment_left = interval '10 minutes' where id = id('req3');
 set local role authenticated;
 select decide_payment(id('pay4'), false, 'Wrong amount');
 do $$ begin assert (select payment_due_at from requests where id = id('req3')) >= now() + interval '2 hours' - interval '1 second', 'at least 2 hours'; end $$;
+
+-- An order an admin cancelled can't be confirmed afterwards.
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select agreed('req4', '10000000-0000-0000-0000-000000000001', 300);
+insert into ids select 'pay5', submit_payment(id('req4'), 'telebirr', '00000000-0000-0000-0000-0000000000b1/p5.jpg');
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select advance_request(id('req4'), 'cancelled');
+select must_fail($$select decide_payment(id('pay5'), true)$$, 'confirm a cancelled order', 'not waiting');
 
 -- 5. The queue is for admins.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';

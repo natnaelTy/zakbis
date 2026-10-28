@@ -10,10 +10,12 @@ create function end_of_addis_day(d date) returns timestamptz language sql immuta
   select ((d + 1)::timestamp at time zone 'Africa/Addis_Ababa')
 $$;
 
--- Same patterns as hasContactDetails in lib/negotiation.ts: 7+ digits (separators allowed), @handles, emails, links.
+-- Same patterns as hasContactDetails in lib/negotiation.ts: Ethiopian phone numbers (09/07…, 251…), +international numbers,
+-- @handles, emails, links. Dates and amounts (2026-11-03, 1 500 000) pass.
 create function has_contact(t text) returns boolean language sql immutable as $$
   select coalesce(
-    t ~ '\+?[0-9]([[:space:].()-]*[0-9]){6,}'
+    t ~ '(\+?251|(^|[^0-9])0)[ -]?[79]([ -]?[0-9]){7}'
+    or t ~ '\+[0-9]([ -]?[0-9]){7,}'
     or t ~ '(^|[^[:alnum:]_])@[[:alnum:]_]{3,}'
     or t ~* '[[:alnum:]._+-]+@[[:alnum:]-]+\.[a-z]+'
     or t ~* '(https?://|www\.|t\.me/|wa\.me/)', false)
@@ -445,7 +447,8 @@ end $$;
 -- Runs after trips_guard (triggers fire by name), so new.status already shows a cancel or a re-check.
 create function trips_rules() returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if has_contact(new.note) then raise exception 'please remove phone numbers, @handles, emails and links'; end if;
+  -- Only a new or changed note: an old one must never lock the trip out of cancelling or approval.
+  if (tg_op = 'INSERT' or new.note is distinct from old.note) and has_contact(new.note) then raise exception 'please remove phone numbers, @handles, emails and links'; end if;
   if tg_op = 'UPDATE' and old.status = 'live' and new.status <> 'live'
      and exists (select 1 from requests where trip_id = new.id and status in ('paid', 'purchased', 'landed')) then
     raise exception 'this trip has paid orders. Contact support to change it';

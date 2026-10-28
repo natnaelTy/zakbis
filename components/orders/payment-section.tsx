@@ -54,8 +54,11 @@ export function PaymentSection({ requestId, total, dueAt, latest, now, onDone }:
     const up = await supabase.storage.from("proofs").upload(path, file, { contentType: file.type });
     const res = up.error ? up : await supabase.rpc("submit_payment", { p_request: requestId, p_method: method, p_proof: path });
     setBusy(false);
-    if (res.error) return setError(res.error.message.includes("time is up") ? "Time's up for this payment." : "Couldn't send. Please try again.");
-    await onDone();
+    if (res.error) {
+      const m = res.error.message;
+      setError(m.includes("time is up") ? "Time's up for this payment." : m.includes("already") ? "We already have your screenshot." : "Couldn't send. Please try again.");
+    }
+    await onDone(); // reload either way: another tab may have paid, or the order may have closed
   }
 
   return (
