@@ -4,14 +4,28 @@ import { format, parseISO } from "date-fns";
 import { ArrowLeft, EyeClosed, Star } from "@/components/icons";
 import { AppShell } from "@/components/app-shell";
 import { ratingLabel, TripTag } from "@/components/trip-tag";
-import { getTrip } from "@/lib/sample-data";
+import { createClient } from "@/lib/supabase/server";
+import { loadRates, loadTripCards } from "@/lib/trips";
 import { SideGate } from "@/components/auth/side-gate";
 import { RequestForm } from "./request-form";
 
 export default async function TripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const trip = getTrip(id);
+  const supabase = await createClient();
+  const [[trip], rates] = await Promise.all([loadTripCards(supabase, { id }), loadRates(supabase)]);
   if (!trip) notFound();
+  const { data: reviewRows } = await supabase
+    .from("reviews")
+    .select("rating, text, created_at, author:profiles!reviews_author_id_fkey(first_name)")
+    .eq("subject_id", trip.travelerId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const reviews = (reviewRows ?? []).map((r) => ({
+    author: (r.author as unknown as { first_name: string | null } | null)?.first_name ?? "Receiver",
+    rating: r.rating as number,
+    text: r.text as string,
+    date: (r.created_at as string).slice(0, 10),
+  }));
 
   return (
     <AppShell active="Explore">
@@ -31,12 +45,12 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
             <h2 id="reviews" className="text-lg font-bold">Reviews</h2>
             <p className="text-sm text-muted-foreground">
               {trip.deliveries > 0 ? `${trip.deliveries} ${trip.deliveries === 1 ? "delivery" : "deliveries"}` : "New traveler"}
-              {trip.reviewCount > 0 && ` · ${ratingLabel(trip)}`} · sample
+              {trip.reviewCount > 0 && ` · ${ratingLabel(trip)}`}
             </p>
           </div>
-          {trip.reviews.length > 0 ? (
+          {reviews.length > 0 ? (
             <ul className="mt-2 divide-y border-y">
-              {trip.reviews.map((r) => (
+              {reviews.map((r) => (
                 <li key={r.author + r.date} className="py-3">
                   <p className="flex items-center gap-2 text-base">
                     <span className="font-semibold">{r.author}</span>
@@ -59,7 +73,7 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
           )}
         </section>
         <SideGate side="receiver">
-          <RequestForm trip={trip} />
+          <RequestForm trip={trip} rates={rates} />
         </SideGate>
       </main>
     </AppShell>

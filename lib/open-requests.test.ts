@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { addisToday, countryList, defaultCurrency, inNeededByRange, isVisibleToTrip, neededByRange } from "./open-requests.ts";
-import { trips } from "./sample-data.ts";
-
-const trip = { ...trips[0] }; // Hana: AE, shopBy 2026-11-08, arrival 2026-11-12
+const trip = { originCountry: "AE" as const, shopBy: "2026-11-08", arrivalDate: "2026-11-12" };
 
 test("visible when country matches, lands by neededBy, can still shop", () => {
   assert.equal(isVisibleToTrip({ countries: ["AE"], neededBy: "2026-11-12" }, trip, "2026-11-01"), true);

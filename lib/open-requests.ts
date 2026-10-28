@@ -1,15 +1,14 @@
 import { addDays, format, parseISO } from "date-fns";
-import type { Currency } from "./money.ts";
-import { originCurrency, type Trip } from "./sample-data.ts";
+import { originCurrency, type Currency } from "./money.ts";
 
-export type Country = Trip["originCountry"];
+export type Country = "US" | "GB" | "CN" | "AE";
 export type OpenRequest = { countries: Country[]; neededBy: string };
 
 export const countryLabel: Record<Country, string> = { US: "USA", GB: "UK", CN: "China", AE: "Dubai" };
 const inSentence: Record<Country, string> = { US: "the USA", GB: "the UK", CN: "China", AE: "Dubai" };
 
 // All dates are ISO "yyyy-MM-dd", so plain string comparison orders them.
-export function isVisibleToTrip(req: OpenRequest, trip: Trip, today: string) {
+export function isVisibleToTrip(req: OpenRequest, trip: { originCountry: Country; arrivalDate: string; shopBy: string }, today: string) {
   return req.countries.includes(trip.originCountry) && trip.arrivalDate <= req.neededBy && trip.shopBy >= today && req.neededBy >= today;
 }
 

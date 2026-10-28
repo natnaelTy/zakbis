@@ -6,30 +6,36 @@ import { format, parseISO } from "date-fns";
 import { Field, focusField, invalidProps, ItemRow, PriceField, ProductFields, SendBar, SuccessView, useItemFields, type ItemFieldId } from "@/components/request/item-fields";
 import { CalendarIcon } from "@/components/icons";
 import { Calendar } from "@/components/ui/calendar";
+import { saveRequest } from "@/components/request/save-request";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { etb, type Currency } from "@/lib/money";
+import { CONTACT_ERROR, hasContactDetails } from "@/lib/negotiation";
 import { addisToday, countryLabel, countryList, defaultCurrency, inNeededByRange, neededByRange, type Country } from "@/lib/open-requests";
 
 const allCountries = Object.keys(countryLabel) as Country[];
 type FieldId = ItemFieldId | "countries" | "neededBy";
 
 /** Remounting on "Post another" resets every field without per-field reset code. */
-export function PostRequestForm() {
+type Rates = Partial<Record<Currency, number>>;
+
+export function PostRequestForm({ rates }: { rates: Rates }) {
   const [round, setRound] = useState(0);
-  return <PostForm key={round} refocus={round > 0} onPostAnother={() => setRound(round + 1)} />;
+  return <PostForm key={round} rates={rates} refocus={round > 0} onPostAnother={() => setRound(round + 1)} />;
 }
 
-function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother: () => void }) {
-  const f = useItemFields(defaultCurrency([]));
+function PostForm({ rates, refocus, onPostAnother }: { rates: Rates; refocus: boolean; onPostAnother: () => void }) {
+  const f = useItemFields(defaultCurrency([]), rates);
   const [picked, setPicked] = useState<Country[]>([]);
   const [currencyTouched, setCurrencyTouched] = useState(false);
   const [neededBy, setNeededBy] = useState("");
   const [dateOpen, setDateOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [posted, setPosted] = useState(false);
+  const [postedId, setPostedId] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [sendError, setSendError] = useState<string>();
   const { requireAuth, sheet } = useRequireAuth("Sign in to post your request", "receiver");
   // The remount removes the focused "Post another" button; put keyboard users back at the start of the form.
   useEffect(() => {
@@ -51,23 +57,33 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
   // The screenshot is optional when a link is given, so its only error is a rejected file, shown as soon as it happens.
   const show = (id: FieldId) => (id === "screenshot" ? f.fileReject : submitted ? errors[id] : undefined);
 
+  async function send() {
+    setBusy(true);
+    const res = await saveRequest(f, { kind: "open", countries: picked, needed_by: neededBy });
+    setBusy(false);
+    if ("error" in res) setSendError(res.error);
+    else setPostedId(res.id);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
+    setSendError(undefined);
     const first = (["countries", "link", "screenshot", "name", "price", "neededBy"] as const).find((id) => errors[id]);
-    if (!first) return void requireAuth(() => setPosted(true));
-    focusField(first);
+    if (first) return focusField(first);
+    if (hasContactDetails(f.item) || hasContactDetails(f.notes)) return setSendError(CONTACT_ERROR);
+    requireAuth(() => void send());
   }
 
-  if (posted && f.itemEtb)
+  if (postedId && f.itemEtb)
     return (
       <SuccessView heading="Your request is live" file={f.file} item={f.item} qty={f.qty} amountLine={`Item cost ≈ ${etb(f.itemEtb)}`}>
         <p className="mt-5 text-base text-muted-foreground">
           Travelers flying from {countryList(picked)} who land by {format(parseISO(neededBy), "d MMM")} can offer to bring it. You choose who.
         </p>
         <div className="mt-6 flex justify-center gap-6">
-          <Link href="/" className="font-semibold text-brand-text underline-offset-4 hover:underline">
-            Back to trips
+          <Link href={`/orders/requests/${postedId}`} className="font-semibold text-brand-text underline-offset-4 hover:underline">
+            See your request
           </Link>
           <button type="button" onClick={onPostAnother} className="font-semibold text-brand-text underline-offset-4 hover:underline">
             Post another
@@ -167,7 +183,12 @@ function PostForm({ refocus, onPostAnother }: { refocus: boolean; onPostAnother:
         </dl>
       </section>
 
-      <SendBar note="You won't pay anything until you accept a traveler's offer" label="Post request" />
+      {sendError && (
+        <p role="alert" className="text-base text-destructive">
+          {sendError}
+        </p>
+      )}
+      <SendBar note="You won't pay anything until you accept a traveler's offer" label="Post request" busy={busy} />
       {sheet}
     </form>
   );

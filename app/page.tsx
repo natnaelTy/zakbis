@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Plane } from "@/components/icons";
 import { AppShell } from "@/components/app-shell";
 import { TripTag } from "@/components/trip-tag";
-import { trips } from "@/lib/sample-data";
+import { createClient } from "@/lib/supabase/server";
+import { loadTripCards } from "@/lib/trips";
 import { cn } from "@/lib/utils";
 
 const origins = [
@@ -16,6 +17,7 @@ const origins = [
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const { from } = await searchParams;
   const selected = origins.find((o) => o.code === from) ?? origins[0];
+  const trips = await loadTripCards(await createClient());
   const shown = selected.code ? trips.filter((t) => t.originCountry === selected.code) : trips;
 
   return (

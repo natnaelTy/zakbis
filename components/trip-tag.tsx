@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { ArrowRight, Plane, Star } from "@/components/icons";
+import { ArrowRight, Plane, Star, User } from "@/components/icons";
 import { AE, CN, ET, GB, US } from "country-flag-icons/react/3x2";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
-import type { Trip } from "@/lib/sample-data";
+import type { TripCard as Trip } from "@/lib/trips";
 
 
 const day = (iso: string) => format(parseISO(iso), "d MMM"); // parseISO keeps date-only strings local, no timezone day shift
@@ -30,7 +30,11 @@ export function TripTag({ trip, static: isStatic = false, revealPhoto = false }:
           {/* span, not the default button: the trigger sits inside the card link */}
           <TooltipTrigger render={<span />} className="size-7 shrink-0 overflow-hidden rounded-full bg-card ring-2 ring-primary-foreground/15">
             {/* shortcut: CSS blur only hides the face visually; serve a server-blurred image until acceptance once real photos exist. */}
-            <img src={trip.photoUrl} alt="" className={revealPhoto ? "size-full object-cover" : "size-full scale-125 object-cover blur-md"} />
+            {trip.photoUrl ? (
+              <img src={trip.photoUrl} alt="" className={revealPhoto ? "size-full object-cover" : "size-full scale-125 object-cover blur-md"} />
+            ) : (
+              <User aria-hidden className="size-full p-1 text-muted-foreground" />
+            )}
           </TooltipTrigger>
           <TooltipContent className="text-sm">
             {revealPhoto ? trip.travelerName : `${trip.travelerName}'s photo is shown once your request is accepted`}

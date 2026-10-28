@@ -9,9 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Field as UIField, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { etb, parseAmount, productError, type Currency } from "@/lib/money";
-import { rates } from "@/lib/sample-data";
-
-const currencies = Object.keys(rates) as Currency[];
 export type ItemFieldId = "link" | "screenshot" | "name" | "price";
 export type Show = (id: ItemFieldId) => string | undefined;
 
@@ -42,7 +39,8 @@ export function focusField(id: string) {
   target?.focus();
 }
 
-export function useItemFields(defaultCurrency: Currency) {
+/** `rates` are the admin rates from fx_rates (loadRates), the same ones the database locks on the request. */
+export function useItemFields(defaultCurrency: Currency, rates: Partial<Record<Currency, number>>) {
   const [link, setLink] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileReject, setFileReject] = useState<string>();
@@ -53,7 +51,7 @@ export function useItemFields(defaultCurrency: Currency) {
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
 
   const unitPrice = parseAmount(price);
-  const rate = rates[currency];
+  const rate = rates[currency] ?? 0;
   const itemEtb = unitPrice && Math.round(unitPrice * qty * rate) >= 1 ? Math.round(unitPrice * qty * rate) : null;
 
   const errors: Partial<Record<ItemFieldId, string>> = {};
@@ -62,7 +60,7 @@ export function useItemFields(defaultCurrency: Currency) {
   if (!item.trim()) errors.name = "What's the item called?";
   if (!itemEtb) errors.price = "Enter the price shown online";
 
-  return { link, setLink, file, setFile, fileReject, setFileReject, item, setItem, qty, setQty, notes, setNotes, price, setPrice, currency, setCurrency, unitPrice, rate, itemEtb, errors };
+  return { link, setLink, file, setFile, fileReject, setFileReject, item, setItem, qty, setQty, notes, setNotes, price, setPrice, currency, setCurrency, unitPrice, rate, rates, itemEtb, errors };
 }
 export type ItemFieldsState = ReturnType<typeof useItemFields>;
 
@@ -135,7 +133,7 @@ export function PriceField({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {currencies.map((c) => (
+            {(Object.keys(f.rates) as Currency[]).map((c) => (
               <SelectItem key={c} value={c}>
                 {c}
               </SelectItem>
@@ -167,11 +165,11 @@ export function ItemRow({ f }: { f: ItemFieldsState }) {
 }
 
 // Sits exactly on the 64px tab bar (+1px border); pb-4 leaves room for the raised Post button.
-export function SendBar({ note, label }: { note: string; label: string }) {
+export function SendBar({ note, label, busy = false }: { note: string; label: string; busy?: boolean }) {
   return (
     <div className="fixed inset-x-0 bottom-[calc(65px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-md border-t bg-background/95 px-4 pt-2 pb-4 backdrop-blur md:static md:max-w-none md:border-0 md:bg-transparent md:p-0">
       <p className="mb-2 text-center text-[13px] text-muted-foreground md:text-base">{note}</p>
-      <Button type="submit" className="h-12 w-full rounded-lg text-base font-bold">
+      <Button type="submit" disabled={busy} className="h-12 w-full rounded-lg text-base font-bold">
         {label}
       </Button>
     </div>

@@ -1,5 +1,7 @@
 export type Currency = "USD" | "GBP" | "CNY" | "AED";
 
+export const originCurrency: Record<"US" | "GB" | "CN" | "AE", Currency> = { US: "USD", GB: "GBP", CN: "CNY", AE: "AED" };
+
 /** Whole-birr quote. Zakbis keeps 9% of the reward only; the receiver never pays the fee. */
 export function quote({ unitPrice, quantity, rate, reward }: { unitPrice: number; quantity: number; rate: number; reward: number }) {
   const itemEtb = Math.round(unitPrice * quantity * rate);
