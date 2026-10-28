@@ -20,7 +20,7 @@ insert into auth.users (id, phone, phone_confirmed_at) values
 insert into profiles (id, first_name, is_admin) values
   ('00000000-0000-0000-0000-0000000000a1', 'Admin', true), ('00000000-0000-0000-0000-0000000000b1', 'Meron', false),
   ('00000000-0000-0000-0000-0000000000c1', 'Hana', false), ('00000000-0000-0000-0000-0000000000d1', 'Sami', false);
-insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
+insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5) on conflict (currency) do update set etb_per_unit = excluded.etb_per_unit;
 insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live');
 insert into payout_accounts values ('00000000-0000-0000-0000-0000000000c1', 'telebirr', 'Hana', '0922000002', null);
@@ -59,14 +59,12 @@ alter table trips enable trigger trips_guard;
 set local role authenticated;
 
 -- I3: receipts and escrow proofs must be the caller's own files.
-select must_fail($$insert into payments (request_id, kind, amount_etb, proof_path)
-  values ('20000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000d1/secret.jpg')$$, 'escrow proof in someone else''s folder');
-select must_fail($$insert into payments (request_id, kind, amount_etb)
-  values ('20000000-0000-0000-0000-000000000001', 'escrow', 1)$$, 'escrow without a proof');
-insert into payments (request_id, kind, amount_etb, proof_path) values
-  ('20000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000b1/proof.jpg');
+select must_fail($$select submit_payment('20000000-0000-0000-0000-000000000001', 'telebirr', '00000000-0000-0000-0000-0000000000d1/secret.jpg')$$, 'escrow proof in someone else''s folder');
+select must_fail($$select submit_payment('20000000-0000-0000-0000-000000000001', 'telebirr', null)$$, 'escrow without a proof');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000b1/proof.jpg');
+select submit_payment('20000000-0000-0000-0000-000000000001', 'telebirr', '00000000-0000-0000-0000-0000000000b1/proof.jpg');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'paid');
+select decide_payment(p.id, true) from payments p where p.request_id = '20000000-0000-0000-0000-000000000001' and p.status = 'pending';
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000d1/x.jpg')$$, 'receipt in someone else''s folder', 'your own');
 select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');
@@ -98,8 +96,8 @@ end $$;
 
 -- I4: proofs can't be deleted by their owner. I5: public buckets can't be listed by others.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
-insert into storage.objects (bucket_id, name) values
-  ('proofs', '00000000-0000-0000-0000-0000000000b1/proof.jpg'), ('screenshots', '00000000-0000-0000-0000-0000000000b1/shot.png');
+-- The payment proof was uploaded above.
+insert into storage.objects (bucket_id, name) values ('screenshots', '00000000-0000-0000-0000-0000000000b1/shot.png');
 delete from storage.objects where bucket_id = 'proofs';
 do $$ begin assert (select count(*) from storage.objects where bucket_id = 'proofs') = 1, 'proof survives its owner''s delete'; end $$;
 set local role anon;

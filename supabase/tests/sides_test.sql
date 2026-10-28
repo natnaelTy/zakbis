@@ -22,7 +22,7 @@ insert into profiles (id, first_name, is_admin, active_side) values
   ('00000000-0000-0000-0000-0000000000b1', 'Meron', false, 'receiver'),
   ('00000000-0000-0000-0000-0000000000c1', 'Hana', false, 'traveler'),
   ('00000000-0000-0000-0000-0000000000d1', 'Sami', false, 'traveler');
-insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
+insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5) on conflict (currency) do update set etb_per_unit = excluded.etb_per_unit;
 
 -- A traveler-first account: a profile row with a side and no receiver name.
 set local role authenticated;

@@ -22,7 +22,7 @@ insert into auth.users (id, phone, phone_confirmed_at) values
 insert into profiles (id, first_name, is_admin) values
   ('00000000-0000-0000-0000-0000000000a1', 'Admin', true), ('00000000-0000-0000-0000-0000000000b1', 'Meron', false),
   ('00000000-0000-0000-0000-0000000000c1', 'Hana', false), ('00000000-0000-0000-0000-0000000000d1', 'Sami', false);
-insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
+insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5) on conflict (currency) do update set etb_per_unit = excluded.etb_per_unit;
 insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live');
 
@@ -82,10 +82,10 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 select make_offer('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 800);
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 select accept_offer(o.id) from offers o where o.request_id = '20000000-0000-0000-0000-000000000001';
-insert into payments (request_id, kind, amount_etb, proof_path) values
-  ('20000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000b1/proof.jpg');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000b1/proof.jpg');
+select submit_payment('20000000-0000-0000-0000-000000000001', 'telebirr', '00000000-0000-0000-0000-0000000000b1/proof.jpg');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'paid');
+select decide_payment(p.id, true) from payments p where p.request_id = '20000000-0000-0000-0000-000000000001' and p.status = 'pending';
 select decide_verification('00000000-0000-0000-0000-0000000000c1', false, 'Other');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');

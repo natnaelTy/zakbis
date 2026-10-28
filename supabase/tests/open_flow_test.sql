@@ -23,7 +23,7 @@ insert into profiles (id, first_name, is_admin) values
   ('00000000-0000-0000-0000-0000000000c1', 'Hana', false), ('00000000-0000-0000-0000-0000000000c2', 'Yonas', false),
   ('00000000-0000-0000-0000-0000000000c3', 'Selam', false), ('00000000-0000-0000-0000-0000000000c4', 'Dawit', false);
 update auth.users set phone = '251911000001', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
-insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5), ('USD', 141.4);
+insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5), ('USD', 141.4) on conflict (currency) do update set etb_per_unit = excluded.etb_per_unit;
 insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
   ('10000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live'),
   ('10000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000c2', 'GB', 'London', 'LHR', addis_today() + 3, addis_today() + 5, 8, 'live'),
@@ -84,9 +84,10 @@ end $$;
 select must_fail($$select accept_offer((select id from ids where name = 'dawit'))$$, 'accept twice');
 
 -- Accepted open request continues on the normal path.
-insert into payments (request_id, kind, amount_etb, proof_path) values ('30000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000b1/p.jpg');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000b1/p.jpg');
+select submit_payment('30000000-0000-0000-0000-000000000001', 'telebirr', '00000000-0000-0000-0000-0000000000b1/p.jpg');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select advance_request('30000000-0000-0000-0000-000000000001', 'paid');
+select decide_payment(p.id, true) from payments p where p.request_id = '30000000-0000-0000-0000-000000000001' and p.status = 'pending';
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 select advance_request('30000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');
 do $$ begin assert (select status from requests where id = '30000000-0000-0000-0000-000000000001') = 'purchased', 'continues to purchased'; end $$;

@@ -25,7 +25,8 @@ insert into profiles (id, first_name, is_admin) values
   ('00000000-0000-0000-0000-0000000000b1', 'Meron', false),
   ('00000000-0000-0000-0000-0000000000c1', 'Hana', false),
   ('00000000-0000-0000-0000-0000000000d1', 'Sami', false);
-insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5);
+insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5) on conflict (currency) do update set etb_per_unit = excluded.etb_per_unit;
+delete from fx_rates where currency = 'USD'; -- for the 'no rate' check
 insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live');
 
@@ -85,9 +86,10 @@ end $$;
 -- Receiver cancels one before paying, then uploads proof and can no longer cancel.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 select cancel_request('20000000-0000-0000-0000-000000000003');
-insert into payments (request_id, kind, amount_etb, proof_path) values ('20000000-0000-0000-0000-000000000001', 'escrow', 1, '00000000-0000-0000-0000-0000000000b1/proof.jpg');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000b1/proof.jpg');
+select submit_payment('20000000-0000-0000-0000-000000000001', 'telebirr', '00000000-0000-0000-0000-0000000000b1/proof.jpg');
 select must_fail($$select cancel_request('20000000-0000-0000-0000-000000000001')$$, 'cancel with pending proof');
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'paid')$$, 'receiver marks paid');
+select must_fail($$select decide_payment(p.id, true) from payments p where p.request_id = '20000000-0000-0000-0000-000000000001'$$, 'receiver marks paid', 'admins only');
 do $$ begin
   assert (select amount_etb from payments where request_id = '20000000-0000-0000-0000-000000000001') = 5420, 'escrow amount comes from the request';
   assert (select status from requests where id = '20000000-0000-0000-0000-000000000002') = 'declined', 'declined';
@@ -96,7 +98,7 @@ end $$;
 
 -- Admin confirms payment.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'paid');
+select decide_payment(p.id, true) from payments p where p.request_id = '20000000-0000-0000-0000-000000000001' and p.status = 'pending';
 
 -- Traveler buys: traveler now sees the receiver's number, receiver still sees nothing.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
