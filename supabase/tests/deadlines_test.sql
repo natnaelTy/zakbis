@@ -118,6 +118,65 @@ do $$ begin
   assert (select count(*) from fx_rates) = 4, 'rates seeded';
 end $$;
 
+-- After paid: photo silence, buying and swap deadlines, no-shows on both sides, holds, reminders.
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status) values
+  ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() - 10, addis_today() - 9, 6, 'live'),
+  ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today(), addis_today(), 6, 'live');
+set local role authenticated;
+select ask(n, 'trip') from unnest(array['a8', 'a9', 'a10', 'a11', 'a12a', 'a12b', 'ah1', 'ah2', 'a13', 'a13b', 'a14', 'ar']) n;
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+update requests set traveler_id = '00000000-0000-0000-0000-0000000000c1', reward_etb = 500, accepted_at = now(), purchased_at = now() where id in (select id from ids where name like 'a%');
+update requests set status = 'purchased', photo_status = 'pending', photo_due_at = now() - interval '1 minute' where id = id('a8');
+update requests set status = 'paid', buy_due_at = now() - interval '1 minute' where id = id('a9');
+update requests set status = 'purchased', photo_status = 'rejected', photo_reason = 'other', buy_due_at = now() - interval '1 minute' where id = id('a10');
+update requests set status = 'purchased', photo_status = 'ok', trip_id = '10000000-0000-0000-0000-000000000002' where id = id('a11');
+update requests set status = 'landed', photo_status = 'ok', landed_at = now() - interval '8 days', handover_due_at = now() + interval '1 hour' where id in (id('a12a'), id('a12b'));
+update requests set status = 'purchased', photo_status = 'pending', photo_due_at = now() - interval '1 minute', hold = 'item_problem', held_at = now() where id = id('ah1');
+update requests set status = 'landed', photo_status = 'ok', landed_at = now() - interval '8 days', handover_due_at = now() - interval '1 minute', hold = 'cant_reach', held_at = now() where id = id('ah2');
+update requests set status = 'paid', trip_id = '10000000-0000-0000-0000-000000000003' where id = id('a13');
+update requests set status = 'purchased', photo_status = 'ok', trip_id = '10000000-0000-0000-0000-000000000003' where id = id('a13b');
+update requests set status = 'landed', photo_status = 'ok', landed_at = now() - interval '4 days', handover_due_at = now() + interval '3 days' where id = id('a14');
+update requests set status = 'purchased', photo_status = 'pending', photo_due_at = now() + interval '1 hour' where id = id('ar');
+-- The receiver says "Not right" just before the silence would have counted as OK.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b1', true);
+select check_item(id('ar'), false, 'other');
+reset role;
+update requests set photo_due_at = now() - interval '1 minute' where id = id('ar');
+update requests set handover_due_at = now() - interval '1 minute' where id = id('a12b'); -- Meron has no confirmed phone yet
+
+select run_deadlines();
+do $$ begin
+  assert (select photo_status from requests where id = id('a8')) = 'ok', 'silence counts as looks right';
+  assert notes_like('c1', '%didn''t answer in time, so the photo of Item a8 counts as right%') = 1, 'traveler told';
+  assert (select hold from requests where id = id('a9')) = 'not_bought', 'not bought goes to the admin';
+  assert notes_like('b1', '%hasn''t marked Item a9 bought%') = 1, 'receiver told';
+  assert (select (status, refund_decided_at is not null) from requests where id = id('a10')) = ('cancelled'::request_status, true), 'missed swap is refunded';
+  assert (select (status, refund_decided_at is not null) from requests where id = id('a11')) = ('cancelled'::request_status, true), 'traveler no-show is refunded';
+  assert (select hold from requests where id = id('a12b')) = 'no_receiver_phone', 'no auto-payout without the receiver''s number';
+  assert (select photo_status from requests where id = id('ah1')) = 'pending', 'held photo check untouched';
+  assert (select (status, hold) from requests where id = id('ah2')) = ('landed'::request_status, 'cant_reach'::text), 'held handover untouched';
+  assert notes_like('c1', 'Today is the last day to buy Item a13%') = 1, 'last buying day reminder';
+  assert notes_like('b1', '%is due in Addis today%') = 1, 'arrival day reminder';
+  assert notes_like('b1', '%is waiting to hand over Item a14%Confirm your phone number%') = 1, 'day-3 handover reminder';
+  assert (select photo_status from requests where id = id('ar')) = 'rejected', 'the receiver''s "Not right" wins the race';
+end $$;
+update auth.users set phone = '251911000001', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
+update auth.users set phone = '251922000002', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000c1';
+update requests set landed_at = now() - interval '6 days 1 hour' where id = id('a14');
+update requests set handover_due_at = now() - interval '1 minute' where id = id('a12a');
+select run_deadlines();
+select run_deadlines();
+do $$ begin
+  assert (select (status, delivered_by_timeout) from requests where id = id('a12a')) = ('delivered'::request_status, true), 'receiver no-show pays the traveler';
+  assert notes_like('c1', 'Today is the last day to buy Item a13%') = 1, 'reminders are sent once';
+  assert notes_like('b1', '%is waiting to hand over Item a14%') = 2, 'day-6 reminder, once';
+  assert notes_like('b1', '%is waiting to hand over Item a14. Call them on +251 911%') = 0 and notes_like('b1', '%Item a14. Call them on +251%') = 1, 'day-6 reminder has the traveler''s number';
+end $$;
+
 set local role authenticated;
 select must_fail($$select run_deadlines()$$, 'users run deadlines', 'permission denied');
 select must_fail($$select * from telegram_outbox()$$, 'users read the outbox', 'permission denied');
