@@ -65,6 +65,17 @@ begin
   perform decide_payment(id(n || '_pay'), true);
 end $$;
 
+-- ...then Hana buys and Meron OKs the photo (In Addis needs the service role, so tests call it after reset role).
+create function bought_ok(n text) returns void language plpgsql as $$
+begin
+  perform paid(n, 800);
+  perform as_user('c1');
+  perform mark_bought(id(n), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg');
+  perform as_user('b1');
+  perform check_item(id(n), true);
+end $$;
+create function code_of(n text) returns text language sql security definer as $$ select code from handover_codes where request_id = id(n) $$;
+
 set local role authenticated;
 
 -- 1. The cut: 15% from settings, locked on each order when the price is agreed.
@@ -219,5 +230,97 @@ do $$ begin
   assert last_note('c1') like '%Meron''s number is on the order%', 'traveler pointed to the number';
 end $$;
 set local role authenticated;
+
+-- 4. Handover, problems, admin holds, refunds and payouts.
+select bought_ok('ord5');
+select bought_ok('ord6');
+reset role;
+select mark_in_addis(id('ord5'), '00000000-0000-0000-0000-0000000000c1');
+select mark_in_addis(id('ord6'), '00000000-0000-0000-0000-0000000000c1');
+set local role authenticated;
+
+-- Problems: receiver only, after In Addis; a hold blocks the handover.
+select as_user('c1');
+select must_fail($$select report_problem(id('ord4'), 'cant_reach')$$, 'traveler reports', 'only the receiver');
+select as_user('b1');
+select must_fail($$select report_problem(id('ord2'), 'cant_reach')$$, 'problem before In Addis', 'no longer valid');
+select must_fail($$select report_problem(id('ord4'), 'rude')$$, 'unknown problem', 'choose');
+select report_problem(id('ord4'), 'cant_reach');
+do $$ begin
+  assert (select (hold, held_at is not null) from requests where id = id('ord4')) = ('cant_reach'::text, true), 'on hold';
+  assert last_note('c1') like '%reported a problem%', 'traveler told';
+end $$;
+select must_fail($$select report_problem(id('ord4'), 'item_problem')$$, 'second problem while held', 'on hold');
+select as_user('c1');
+select must_fail($$select deliver(id('ord4'), code_of('ord4'))$$, 'handover while held', 'on hold');
+
+-- The admin resolves holds.
+select as_user('b1');
+select must_fail($$select resolve_hold(id('ord4'), 'restart')$$, 'receiver resolves', 'admins only');
+select as_user('a1');
+select must_fail($$select resolve_hold(id('ord4'), 'extend')$$, 'wrong action for the hold', 'not an option');
+select must_fail($$select resolve_hold(id('ord5'), 'refund')$$, 'nothing on hold', 'not on hold');
+select resolve_hold(id('ord4'), 'restart');
+do $$ declare r requests; begin
+  select * into r from requests where id = id('ord4');
+  assert r.hold is null and r.handover_reminders = 0 and r.handover_due_at > now() + interval '6 days 23 hours', 'a fresh week';
+end $$;
+select as_user('b1');
+select report_problem(id('ord4'), 'item_problem');
+select as_user('a1');
+select resolve_hold(id('ord4'), 'pay');
+do $$ begin assert (select (status, hold) from requests where id = id('ord4')) = ('delivered'::request_status, null::text), 'paid out as delivered'; end $$;
+select as_user('b1');
+select report_problem(id('ord5'), 'item_problem');
+select as_user('a1');
+select resolve_hold(id('ord5'), 'refund');
+do $$ declare r requests; begin
+  select * into r from requests where id = id('ord5');
+  assert r.status = 'cancelled' and r.refund_decided_at is not null and r.hold is null, 'refund decided';
+end $$;
+
+-- Handover with the code (needs a payout account).
+select as_user('c1');
+select must_fail($$select deliver(id('ord1'), code_of('ord1'))$$, 'no payout account', 'payout account');
+select as_user('a1');
+select must_fail($$select mark_paid_out(id('ord4'))$$, 'pay out without an account', 'payout account');
+select as_user('c1');
+insert into payout_accounts (user_id, method, account_name, account_number) values ('00000000-0000-0000-0000-0000000000c1', 'telebirr', 'Hana T', '0922000002');
+do $$ begin
+  assert deliver(id('ord1'), 'nope') = 'wrong_code', 'wrong code';
+  assert deliver(id('ord1'), code_of('ord1')) = 'delivered', 'delivered';
+  assert last_note('c1') like '%confirmed the handover%', 'traveler told the payout is coming';
+  assert last_note('b1') like 'You got %', 'receiver thanked';
+end $$;
+
+-- The admin queue, then refunds and payouts, each once.
+select as_user('b1');
+select report_problem(id('ord6'), 'cant_reach');
+select must_fail($$select orders_to_act()$$, 'receiver reads the queue', 'admins only');
+select as_user('a1');
+do $$ begin
+  assert (select count(*) from orders_to_act() where kind = 'payout') = 2, 'two payouts';
+  assert (select amount_etb from orders_to_act() where request_id = id('ord1')) = (select item_etb + 680 from requests where id = id('ord1')), 'payout is item plus 85% of the reward';
+  assert (select payout_account_number from orders_to_act() where request_id = id('ord1')) = '0922000002', 'payout account shown';
+  assert (select count(*) from orders_to_act() where kind = 'refund') = 2, 'two refunds (can''t swap, item problem)';
+  assert (select amount_etb from orders_to_act() where request_id = id('ord3')) = (select total_etb from requests where id = id('ord3')), 'refund is the total';
+  assert (select hold from orders_to_act() where request_id = id('ord6')) = 'cant_reach', 'held order listed';
+end $$;
+select mark_order_refunded(id('ord3'));
+do $$ begin
+  assert (select status from payments where request_id = id('ord3') and kind = 'escrow' order by created_at desc limit 1) = 'refunded', 'payment refunded';
+  assert last_note('b1') like 'We refunded%', 'receiver told';
+end $$;
+select must_fail($$select mark_order_refunded(id('ord3'))$$, 'refund twice', 'no refund');
+select must_fail($$select mark_order_refunded(id('ord1'))$$, 'refund a delivered order', 'no refund');
+select mark_paid_out(id('ord1'));
+do $$ begin
+  assert (select status from requests where id = id('ord1')) = 'paid_out', 'paid out';
+  assert last_note('c1') like 'We sent you%', 'traveler told';
+end $$;
+select must_fail($$select mark_paid_out(id('ord1'))$$, 'pay out twice', 'no longer valid');
+select must_fail($$select mark_paid_out(id('ord5'))$$, 'pay out a refunded order', 'no longer valid');
+select as_user('b1');
+select must_fail($$select mark_paid_out(id('ord4'))$$, 'receiver pays out', 'admins only');
 
 rollback;

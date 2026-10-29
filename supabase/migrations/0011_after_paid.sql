@@ -300,3 +300,124 @@ create or replace function counterpart_phone(p_request uuid) returns text langua
   end
   from requests r where r.id = p_request and r.landed_at is not null
 $$;
+
+-- Handover, problems, admin holds, refunds and payouts ------------------------------------------------
+
+-- Same contract as before (a wrong guess is counted, so it returns instead of raising); now also blocked while on hold.
+create or replace function deliver(p_id uuid, p_code text) returns text language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  r requests;
+  h handover_codes;
+begin
+  select * into r from requests where id = p_id for update;
+  if not found or uid is null or uid is distinct from r.traveler_id or r.status <> 'landed' then
+    raise exception 'cannot deliver this request';
+  end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if not exists (select 1 from payout_accounts where user_id = uid) then raise exception 'add a payout account first'; end if;
+  select * into h from handover_codes where request_id = p_id for update;
+  if h.attempts >= 5 then return 'locked'; end if;
+  if p_code is distinct from h.code then
+    update handover_codes set attempts = attempts + 1 where request_id = p_id;
+    return 'wrong_code';
+  end if;
+  update requests set status = 'delivered', updated_at = now() where id = p_id;
+  perform notify(r.traveler_id, 'traveler', r.id, format('%s confirmed the handover. We''ll send you %s.', receiver_name(r.receiver_id), etb_text(r.payout_etb)));
+  perform notify(r.receiver_id, 'receiver', r.id, format('You got %s. Thanks for using Zakbis!', r.item_name));
+  return 'delivered';
+end $$;
+
+-- The receiver stops the clock and asks Zakbis to step in.
+create function report_problem(p_request uuid, p_kind text) returns void language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.receiver_id is distinct from auth.uid() then raise exception 'only the receiver can do that'; end if;
+  if r.status <> 'landed' then raise exception 'this order is no longer valid for that'; end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if p_kind is null or p_kind not in ('item_problem', 'cant_reach') then raise exception 'choose a problem'; end if;
+  update requests set hold = p_kind, held_at = now(), updated_at = now() where id = r.id;
+  perform notify(r.traveler_id, 'traveler', r.id, format('%s reported a problem with %s. Zakbis will contact you.', receiver_name(r.receiver_id), r.item_name));
+end $$;
+
+-- refund for any hold; extend (2 more days to buy) for not_bought; restart (a fresh handover week) for cant_reach;
+-- pay (treated as delivered) for item_problem and no_receiver_phone.
+create function resolve_hold(p_request uuid, p_action text) returns void language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  select * into r from requests where id = p_request for update;
+  if not found or r.hold is null then raise exception 'this order is not on hold'; end if;
+  if p_action = 'refund' then
+    perform decide_refund(r, format('Zakbis decided to refund you %s for %s.', etb_text(r.total_etb), r.item_name), format('Zakbis cancelled the order for %s.', r.item_name));
+  elsif p_action = 'extend' and r.hold = 'not_bought' then
+    update requests set hold = null, buy_due_at = now() + interval '2 days', updated_at = now() where id = r.id;
+    perform notify(r.traveler_id, 'traveler', r.id, format('You have 2 more days to buy %s.', r.item_name));
+    perform notify(r.receiver_id, 'receiver', r.id, format('%s has 2 more days to buy %s.', traveler_name(r.traveler_id), r.item_name));
+  elsif p_action = 'restart' and r.hold = 'cant_reach' then
+    update requests set hold = null, handover_due_at = now() + interval '7 days', handover_reminders = 0, updated_at = now() where id = r.id;
+    perform notify(r.traveler_id, 'traveler', r.id, format('You have another week to hand over %s.', r.item_name));
+    perform notify(r.receiver_id, 'receiver', r.id, format('%s has another week to hand over %s.', traveler_name(r.traveler_id), r.item_name));
+  elsif p_action = 'pay' and r.hold in ('item_problem', 'no_receiver_phone') then
+    update requests set hold = null, status = 'delivered', updated_at = now() where id = r.id;
+    perform notify(r.traveler_id, 'traveler', r.id, format('Zakbis decided to pay you for %s. We''ll send you %s.', r.item_name, etb_text(r.payout_etb)));
+    perform notify(r.receiver_id, 'receiver', r.id, format('Zakbis closed the order for %s.', r.item_name));
+  else
+    raise exception 'that is not an option for this hold';
+  end if;
+end $$;
+
+-- The admin sent the money back by hand.
+create function mark_order_refunded(p_request uuid) returns void language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+  pay uuid;
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  select * into r from requests where id = p_request for update;
+  select id into pay from payments where request_id = p_request and kind = 'escrow' and status = 'confirmed' order by created_at desc limit 1;
+  if not found or r.status <> 'cancelled' or r.refund_decided_at is null or pay is null then raise exception 'no refund to mark for this order'; end if;
+  update payments set status = 'refunded', decided_at = now(), decided_by = auth.uid() where id = pay;
+  perform notify(r.receiver_id, 'receiver', r.id, format('We refunded %s for %s.', etb_text(r.total_etb), r.item_name));
+end $$;
+
+-- The admin sent the traveler item cost + reward − Zakbis's cut.
+create function mark_paid_out(p_request uuid) returns void language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  select * into r from requests where id = p_request for update;
+  if not found or r.status <> 'delivered' then raise exception 'this order is no longer valid for that'; end if;
+  if not exists (select 1 from payout_accounts where user_id = r.traveler_id) then raise exception 'the traveler has no payout account'; end if;
+  update requests set status = 'paid_out', updated_at = now() where id = r.id;
+  perform notify(r.traveler_id, 'traveler', r.id, format('We sent you %s for %s.', etb_text(r.payout_etb), r.item_name));
+end $$;
+
+-- Everything waiting on an admin: holds to decide, refunds to send, payouts to send.
+create function orders_to_act() returns table (
+  request_id uuid, item_name text, quantity int, kind text, hold text, held_at timestamptz, amount_etb int,
+  receiver_name text, traveler_name text, payout_method text, payout_account_name text, payout_account_number text,
+  payout_bank_name text, refund_method text, delivered_by_timeout boolean
+) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  return query
+    select r.id, r.item_name, r.quantity, k.kind, r.hold, coalesce(r.held_at, r.updated_at),
+           case when k.kind = 'payout' then r.payout_etb else r.total_etb end,
+           receiver_name(r.receiver_id), traveler_name(r.traveler_id),
+           pa.method, pa.account_name, pa.account_number, pa.bank_name, pm.method, r.delivered_by_timeout
+    from requests r
+    cross join lateral (select case
+      when r.hold is not null then 'hold'
+      when r.status = 'delivered' then 'payout'
+      when r.status = 'cancelled' and r.refund_decided_at is not null then 'refund' end as kind) k
+    left join payout_accounts pa on pa.user_id = r.traveler_id
+    left join lateral (select p.method from payments p where p.request_id = r.id and p.kind = 'escrow' and p.status = 'confirmed'
+                       order by p.created_at desc limit 1) pm on true
+    where k.kind is not null and (k.kind <> 'refund' or pm.method is not null)
+    order by 6;
+end $$;
