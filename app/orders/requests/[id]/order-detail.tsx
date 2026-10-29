@@ -121,9 +121,11 @@ export function OrderDetail({ id }: { id: string }) {
 
   function closedLine() {
     if (viewer === "traveler" && mine && mine.status !== "accepted" && mine.status !== "pending") {
-      return { closed: "The receiver chose another traveler", rejected: `${receiverName} passed on your price`, withdrawn: "You withdrew your offer", expired: "Time ran out" }[mine.status];
+      // A closed offer: another traveler won, the receiver cancelled, or the traveler's own trip changed.
+      const closedWhy = r.traveler_id && r.traveler_id !== uid ? "The receiver chose another traveler" : r.status === "cancelled" ? "The receiver cancelled" : "Your trip changed, so this offer closed";
+      return { closed: closedWhy, rejected: `${receiverName} passed on your price`, withdrawn: "You withdrew your offer", expired: "Time ran out" }[mine.status];
     }
-    if (r.status === "declined") return r.decline_reason ? `${travelerName(r.traveler_id)} declined: ${reasonLabel(r.decline_reason)}` : "Declined";
+    if (r.status === "declined") return r.decline_reason ? `${viewer === "traveler" ? "You" : travelerName(r.traveler_id)} declined: ${reasonLabel(r.decline_reason)}` : "Declined";
     if (r.status === "expired") return "No answer in time";
     if (r.status === "cancelled") return "Cancelled";
   }

@@ -87,7 +87,11 @@ export function OfferCard({
     <section className="space-y-3 rounded-xl border bg-card p-4" aria-label={`Offer from ${names.traveler}`}>
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-lg font-bold">{viewer === "receiver" ? names.traveler : "Your offer"}</h3>
-        {offer.status === "pending" && <span className="text-[13px] text-muted-foreground">Answer within {timeLeft(offer.due_at, now)}</span>}
+        {offer.status === "pending" && (
+          <span className="text-[13px] text-muted-foreground">
+            {offer.turn === viewer ? "Answer" : `${names[offer.turn]} answers`} within {timeLeft(offer.due_at, now)}
+          </span>
+        )}
       </div>
 
       <ol className="space-y-1 text-base text-muted-foreground">
