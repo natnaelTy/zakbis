@@ -243,3 +243,60 @@ begin
 end $$;
 
 revoke execute on function buy_due(requests), own_proof(text), decide_refund(requests, text, text) from public, anon, authenticated;
+
+-- Phone codes, "I'm in Addis", the reveal ---------------------------------------------------------
+
+-- SMS codes for the phone check; only the server (service role) reads or writes them.
+create table phone_codes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users on delete cascade,
+  phone text not null check (phone ~ '^251[79][0-9]{8}$'),
+  code_hash text not null,
+  request_id uuid references requests on delete cascade, -- set when the code is for "I'm in Addis"
+  expires_at timestamptz not null,
+  attempts int not null default 0,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index on phone_codes (user_id, created_at desc);
+alter table phone_codes enable row level security;
+
+create function display_phone(p text) returns text language sql immutable as $$
+  select '+251 ' || substr(p, 4, 3) || ' ' || substr(p, 7, 3) || ' ' || substr(p, 10, 3)
+$$;
+
+-- Called by /api/phone/verify after a fresh SMS code reached the traveler's Ethiopian SIM: the code is the proof they've arrived.
+create function mark_in_addis(p_request uuid, p_user uuid) returns void language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+  them text;
+  who text;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.traveler_id is distinct from p_user then raise exception 'only the traveler can do that'; end if;
+  if r.status <> 'purchased' or r.photo_status is distinct from 'ok' then raise exception 'this order is no longer valid for that'; end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if addis_today() < (select arrival_date from trips where id = r.trip_id) then raise exception 'not before the arrival date'; end if;
+  if coalesce(phone_of(p_user), '') not like '251%' then raise exception 'confirm an Ethiopian phone number first'; end if;
+  update requests set status = 'landed', landed_at = now(), handover_due_at = now() + interval '7 days', updated_at = now() where id = r.id;
+  who := traveler_name(r.traveler_id);
+  them := phone_of(r.receiver_id);
+  if them is not null then
+    perform notify(r.receiver_id, 'receiver', r.id, format('%s is in Addis. Call %s on %s. Pick a public place to meet for safety.', who, who, display_phone(phone_of(p_user))));
+    perform notify(r.traveler_id, 'traveler', r.id, format('You''re marked in Addis. %s''s number is on the order.', receiver_name(r.receiver_id)));
+  else
+    perform notify(r.receiver_id, 'receiver', r.id, format('%s is in Addis. Confirm your phone number to see their number and meet.', who));
+    perform notify(r.traveler_id, 'traveler', r.id, format('You''re marked in Addis. %s hasn''t confirmed their number yet; we''ve asked them.', receiver_name(r.receiver_id)));
+  end if;
+end $$;
+revoke execute on function mark_in_addis(uuid, uuid) from public, anon, authenticated;
+grant execute on function mark_in_addis(uuid, uuid) to service_role;
+
+-- Both numbers appear at "I'm in Addis", and only to someone who confirmed their own. Revealed stays revealed.
+create or replace function counterpart_phone(p_request uuid) returns text language sql stable security definer set search_path = public as $$
+  select case
+    when auth.uid() = r.traveler_id then phone_of(r.receiver_id)
+    when auth.uid() = r.receiver_id and phone_of(auth.uid()) is not null then phone_of(r.traveler_id)
+  end
+  from requests r where r.id = p_request and r.landed_at is not null
+$$;

@@ -105,7 +105,7 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') is null, 'no phone before purchase'; end $$;
 insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000c1/receipt.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000c1/item.jpg');
 select mark_bought('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1/receipt.jpg', '00000000-0000-0000-0000-0000000000c1/item.jpg');
-do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') = '251911000001', 'traveler sees receiver after purchase'; end $$;
+do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') is null, 'no number at purchase: revealed at In Addis'; end $$;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') is null, 'receiver sees nothing before landing'; end $$;
 

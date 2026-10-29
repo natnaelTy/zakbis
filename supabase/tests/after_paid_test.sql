@@ -24,6 +24,9 @@ insert into profiles (id, first_name, is_admin, active_side) values
   ('00000000-0000-0000-0000-0000000000d1', 'Sami', false, 'receiver');
 insert into fx_rates (currency, etb_per_unit) values ('AED', 38.5) on conflict (currency) do update set etb_per_unit = 38.5;
 select test_verify('00000000-0000-0000-0000-0000000000c1');
+select set_config('zakbis.deciding', 'on', true);
+update traveler_verifications set given_name = 'Hana' where user_id = '00000000-0000-0000-0000-0000000000c1';
+select set_config('zakbis.deciding', 'off', true);
 insert into storage.objects (bucket_id, name) values
   ('tickets', '00000000-0000-0000-0000-0000000000c1/t.pdf'),
   ('proofs', '00000000-0000-0000-0000-0000000000b1/pay.jpg'),
@@ -165,5 +168,56 @@ select as_user('b1');
 do $$ begin assert can_see_proof('00000000-0000-0000-0000-0000000000c1/i2.jpg'), 'receiver sees the photo'; end $$;
 select as_user('d1');
 do $$ begin assert not can_see_proof('00000000-0000-0000-0000-0000000000c1/i2.jpg'), 'stranger doesn''t'; end $$;
+
+-- 3. "I'm in Addis": only the server calls it, after a fresh SMS code; it reveals both confirmed numbers.
+select as_user('c1');
+select must_fail($$select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000c1')$$, 'browser marks In Addis', 'permission denied');
+reset role;
+select must_fail($$select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000c1')$$, 'before the arrival date', 'arrival');
+select set_config('request.jwt.claim.sub', '', true); -- server-side edit, past the trip guard
+update trips set shop_by = addis_today(), arrival_date = addis_today() where id = '10000000-0000-0000-0000-000000000001';
+select must_fail($$select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000b1')$$, 'not the traveler', 'only the traveler');
+select must_fail($$select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000c1')$$, 'no confirmed phone', 'phone');
+update auth.users set phone = '447700900000', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000c1';
+select must_fail($$select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000c1')$$, 'UK phone', 'phone');
+update auth.users set phone = '251922000002' where id = '00000000-0000-0000-0000-0000000000c1';
+set local role authenticated;
+select as_user('c1');
+do $$ begin assert counterpart_phone(id('ord1')) is null, 'traveler sees no number before In Addis'; end $$;
+reset role;
+select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000c1');
+do $$ declare r requests; begin
+  select * into r from requests where id = id('ord1');
+  assert r.status = 'landed' and r.landed_at is not null, 'in Addis';
+  assert r.handover_due_at between now() + interval '6 days 23 hours' and now() + interval '7 days', 'a week to hand over';
+  assert last_note('b1') like '%is in Addis. Confirm your phone number%', 'unconfirmed receiver asked to confirm';
+  assert last_note('c1') like '%hasn''t confirmed%', 'traveler told the receiver must confirm';
+end $$;
+select must_fail($$select mark_in_addis(id('ord1'), '00000000-0000-0000-0000-0000000000c1')$$, 'In Addis twice', 'no longer valid');
+set local role authenticated;
+select as_user('b1');
+do $$ begin assert counterpart_phone(id('ord1')) is null, 'receiver without a confirmed number sees nothing'; end $$;
+reset role;
+update auth.users set phone = '251911000001', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000b1';
+set local role authenticated;
+do $$ begin assert counterpart_phone(id('ord1')) = '251922000002', 'receiver sees the traveler after confirming'; end $$;
+select as_user('c1');
+do $$ begin assert counterpart_phone(id('ord1')) = '251911000001', 'traveler sees the receiver'; end $$;
+select as_user('d1');
+do $$ begin assert counterpart_phone(id('ord1')) is null, 'stranger sees nothing'; end $$;
+
+-- A receiver who confirmed early gets the number in the note.
+select paid('ord4', 800);
+select as_user('c1');
+select mark_bought(id('ord4'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg');
+reset role;
+select must_fail($$select mark_in_addis(id('ord4'), '00000000-0000-0000-0000-0000000000c1')$$, 'photo not checked yet', 'no longer valid');
+update requests set photo_status = 'ok' where id = id('ord4');
+select mark_in_addis(id('ord4'), '00000000-0000-0000-0000-0000000000c1');
+do $$ begin
+  assert last_note('b1') = 'Hana is in Addis. Call Hana on +251 922 000 002. Pick a public place to meet for safety.', 'receiver gets the number';
+  assert last_note('c1') like '%Meron''s number is on the order%', 'traveler pointed to the number';
+end $$;
+set local role authenticated;
 
 rollback;
