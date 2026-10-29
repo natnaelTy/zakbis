@@ -25,10 +25,10 @@ This is a structured, escrow-backed version of what already happens informally i
 - **Handover** happens in Addis Ababa only.
 
 ## Capabilities and Constraints
-- **Stack:** Next.js App Router with Supabase (database, login, file storage). The schema is in `supabase/migrations/0001_buy_me.sql`. Login is by Telegram, Google or a 6-digit email code, linkable to one account; a phone number is verified once by SMS (AfroMessage) at the payment and landing steps.
+- **Stack:** Next.js App Router with Supabase (database, login, file storage). The schema is in `supabase/migrations/0001_buy_me.sql`. Login is by Telegram, Google or a 6-digit email code, linkable to one account; phone numbers are confirmed by SMS code (AfroMessage): the traveler at every "I'm in Addis", the receiver once before the handover.
 - **Shipped in English only.** Amharic comes later.
 - **Out of scope:** the triangular sender/traveler/receiver flow, cities other than Addis, in-app chat, tracking, multi-item orders and insurance.
-- **Service fee:** Zakbis keeps 9% of the traveler's reward only; the receiver pays item cost + reward.
+- **Service fee:** Zakbis keeps 15% of the traveler's reward only (stored in the `settings` table, locked per order when the price is agreed); the receiver pays item cost + reward.
 - **Still undecided:** payout timeframe, and what "verified traveler" means (the card already shows a verified badge on sample data).
 
 ## Brand Commitments
