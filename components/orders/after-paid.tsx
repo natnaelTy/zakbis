@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { etb } from "@/lib/money";
-import { ITEM_REASONS, itemReasonLabel, timeLeft, type Side } from "@/lib/negotiation";
+import { buyHint, ITEM_REASONS, itemReasonLabel, timeLeft, type Side } from "@/lib/negotiation";
 import { displayPhone } from "@/lib/phone";
 import { btn, ReasonPicker, type Act } from "./offer-card";
 import { PhoneCheck } from "./phone-check";
@@ -69,7 +69,7 @@ export function AfterPaid({ req: r, viewer, travelerName, receiverName, now, bus
     <>
       {r.status === "paid" &&
         (isTraveler ? (
-          <BoughtForm title="Mark bought" hint={x.shopBy && `Buy by the end of ${dayOf(x.shopBy)}`} submit="Mark bought" busy={busy}
+          <BoughtForm title="Mark bought" hint={buyHint(r.buy_due_at, x.shopBy, now)} submit="Mark bought" busy={busy}
             onSend={(receipt, photo) => act("mark_bought", { p_request: r.id, p_receipt: receipt, p_photo: photo })} />
         ) : (
           <p className={`${card} text-base font-semibold`}>{travelerName} is shopping for {r.item_name}.</p>
@@ -134,7 +134,7 @@ export function AfterPaid({ req: r, viewer, travelerName, receiverName, now, bus
             </div>
           ) : (
             <>
-              <BoughtForm title="Swap it" hint={x.shopBy && `By the end of ${dayOf(x.shopBy)}`} submit="Send swap" busy={busy}
+              <BoughtForm title="Swap it" hint={buyHint(r.buy_due_at, x.shopBy, now)} submit="Send swap" busy={busy}
                 onSend={(receipt, photo) => act("swap_item", { p_request: r.id, p_receipt: receipt, p_photo: photo })} />
               <Button variant="outline" className={`${btn} mt-3 text-destructive`} onClick={() => setMode("cant_swap")}>
                 Can&apos;t swap

@@ -277,6 +277,7 @@ begin
   if r.status <> 'purchased' or r.photo_status is distinct from 'ok' then raise exception 'this order is no longer valid for that'; end if;
   if r.hold is not null then raise exception 'this order is on hold'; end if;
   if addis_today() < (select arrival_date from trips where id = r.trip_id) then raise exception 'not before the arrival date'; end if;
+  if addis_today() > (select arrival_date from trips where id = r.trip_id) + 7 then raise exception 'time is up'; end if; -- deadline step 11, even if the cron is late
   if coalesce(phone_of(p_user), '') not like '251%' then raise exception 'confirm an Ethiopian phone number first'; end if;
   update requests set status = 'landed', landed_at = now(), handover_due_at = now() + interval '7 days', updated_at = now() where id = r.id;
   who := traveler_name(r.traveler_id);
@@ -337,6 +338,7 @@ begin
   if not found or r.receiver_id is distinct from auth.uid() then raise exception 'only the receiver can do that'; end if;
   if r.status <> 'landed' then raise exception 'this order is no longer valid for that'; end if;
   if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if r.handover_due_at < now() then raise exception 'time is up'; end if; -- deadline step 12, even if the cron is late
   if p_kind is null or p_kind not in ('item_problem', 'cant_reach') then raise exception 'choose a problem'; end if;
   update requests set hold = p_kind, held_at = now(), updated_at = now() where id = r.id;
   perform notify(r.traveler_id, 'traveler', r.id, format('%s reported a problem with %s. Zakbis will contact you.', receiver_name(r.receiver_id), r.item_name));

@@ -1,4 +1,5 @@
 import type { Side } from "./sides.ts";
+import { format, parseISO } from "date-fns";
 import { parseEtb } from "./money.ts";
 
 export type { Side };
@@ -67,6 +68,12 @@ export function timeLeft(dueIso: string, now: Date): string {
   const min = Math.floor((Date.parse(dueIso) - now.getTime()) / 60_000);
   if (min <= 0) return "Time's up";
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h`;
+}
+
+/** The traveler's buying deadline: hours left after an admin's "2 more days", otherwise the trip's shop-by day. */
+export function buyHint(buyDueAt: string | null, shopBy: string | undefined, now: Date): string | undefined {
+  if (buyDueAt) return `Buy within ${timeLeft(buyDueAt, now)}`;
+  if (shopBy) return `Buy by the end of ${format(parseISO(shopBy), "d MMM")}`;
 }
 
 export type Stage =

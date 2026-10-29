@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeEtPhone } from "@/lib/phone";
-import { hashCode, isTestNumber, sendSms, smsMode } from "@/lib/sms";
+import { hashCode, isTestNumber, sendLimit, sendSms, smsMode } from "@/lib/sms";
 import { isSameOrigin } from "@/lib/telegram-auth";
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
@@ -21,11 +21,15 @@ export async function POST(request: Request) {
   if (mode === "test" && !isTestNumber(phone)) return fail("invalid_phone", 400);
 
   const admin = createAdminClient();
-  const { data: recent, error } = await admin.from("phone_codes").select("created_at").eq("user_id", auth.user.id)
-    .gte("created_at", new Date(Date.now() - 15 * 60_000).toISOString()).order("created_at", { ascending: false });
-  if (error) return fail("server", 500);
-  if (recent.length && Date.now() - Date.parse(recent[0].created_at) < 60_000) return fail("too_soon", 429);
-  if (recent.length >= 3) return fail("too_many", 429);
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+  const [mine, toPhone, today] = await Promise.all([
+    admin.from("phone_codes").select("created_at").eq("user_id", auth.user.id).gte("created_at", ago(15 * 60_000)),
+    admin.from("phone_codes").select("id", { count: "exact", head: true }).eq("phone", phone).gte("created_at", ago(3600_000)),
+    admin.from("phone_codes").select("id", { count: "exact", head: true }).gte("created_at", ago(24 * 3600_000)),
+  ]);
+  if (mine.error || toPhone.error || today.error) return fail("server", 500);
+  const limited = sendLimit({ userTimes: mine.data.map((r) => Date.parse(r.created_at)), phoneLastHour: toPhone.count ?? 0, sentToday: today.count ?? 0, now: Date.now() });
+  if (limited) return fail(limited, 429);
 
   const code = mode === "test" ? process.env.ZAKBIS_SMS_TEST_CODE! : String(randomInt(0, 1_000_000)).padStart(6, "0");
   const { error: insertError } = await admin.from("phone_codes").insert({

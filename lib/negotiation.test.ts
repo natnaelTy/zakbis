@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { counterError, hasContactDetails, offerActions, stageLabel, suggestionError, timeLeft, type OfferView } from "./negotiation.ts";
+import { buyHint, counterError, hasContactDetails, offerActions, stageLabel, suggestionError, timeLeft, type OfferView } from "./negotiation.ts";
 
 const now = new Date("2026-10-28T09:00:00Z");
 const inHour = new Date(now.getTime() + 3600_000).toISOString();
@@ -72,4 +72,10 @@ test("after-paid stage labels", () => {
   assert.equal(stageLabel("delivered", base), "Delivered");
   assert.equal(stageLabel("paid_out", base), "Paid out");
   assert.equal(stageLabel("refunding", base), "Refund on its way");
+});
+
+test("buy-by hint follows an admin's extension", () => {
+  assert.equal(buyHint(null, "2026-11-03", now), "Buy by the end of 3 Nov");
+  assert.equal(buyHint(new Date(now.getTime() + 47 * 3600_000).toISOString(), "2026-10-27", now), "Buy within 47 h");
+  assert.equal(buyHint(null, undefined, now), undefined);
 });

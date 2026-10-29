@@ -338,4 +338,16 @@ do $$ begin
   assert (select stage from my_orders('receiver') where id = id('ord3')) = 'closed', 'refunded is closed';
 end $$;
 
+-- 6. Deadlines hold under the lock even if the cron is late.
+select bought_ok('ord7');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+update trips set shop_by = addis_today() - 9, arrival_date = addis_today() - 8 where id = '10000000-0000-0000-0000-000000000001';
+select must_fail($$select mark_in_addis(id('ord7'), '00000000-0000-0000-0000-0000000000c1')$$, 'In Addis a week after arrival', 'time is up');
+update requests set handover_due_at = now() - interval '1 minute' where id = id('ord6');
+update requests set hold = null where id = id('ord6');
+set local role authenticated;
+select as_user('b1');
+select must_fail($$select report_problem(id('ord6'), 'cant_reach')$$, 'problem after the handover week', 'time is up');
+
 rollback;
