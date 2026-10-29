@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { btn, OfferCard, ReasonPicker, type Offer, type OfferEvent } from "@/components/orders/offer-card";
 import { PaymentSection, type LatestPayment } from "@/components/orders/payment-section";
+import { TakeHomeLine, useFeePct } from "@/components/orders/take-home";
 import { createClient } from "@/lib/supabase/client";
 import { etb, parseEtb } from "@/lib/money";
 import { countryLabel, type Country } from "@/lib/open-requests";
@@ -44,6 +45,7 @@ export function OrderDetail({ id }: { id: string }) {
   const [mode, setMode] = useState<"price" | "decline" | "cancel" | null>(null);
   const [price, setPrice] = useState("");
   const [now, setNow] = useState(() => new Date());
+  const feePct = useFeePct();
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -206,6 +208,7 @@ export function OrderDetail({ id }: { id: string }) {
           ) : (
             <form onSubmit={sendPrice} noValidate className="space-y-3">
               <Input aria-label="Reward (ETB)" inputMode="numeric" placeholder="Reward in ETB" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <TakeHomeLine raw={price} pct={feePct} />
               <div className="flex gap-2">
                 <Button type="submit" className={btn} disabled={busy}>
                   Send price
@@ -235,6 +238,7 @@ export function OrderDetail({ id }: { id: string }) {
               key={o.id}
               offer={o}
               events={events.filter((e) => e.offer_id === o.id)}
+              feePct={feePct}
               viewer={viewer}
               names={{ traveler: travelerName(o.traveler_id), receiver: receiverName }}
               itemEtb={r.item_etb}

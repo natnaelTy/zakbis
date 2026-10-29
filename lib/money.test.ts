@@ -1,24 +1,29 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { etb, normalizeUrl, parseAmount, parseEtb, productError, quote } from "./money.ts";
+import { etb, normalizeUrl, parseAmount, parseEtb, productError, quote, takeHome } from "./money.ts";
 
 test("spec example: Hana's perfume", () => {
-  assert.deepEqual(quote({ unitPrice: 120, quantity: 1, rate: 38.5, reward: 800 }), {
+  assert.deepEqual(quote({ unitPrice: 120, quantity: 1, rate: 38.5, reward: 800, feePct: 15 }), {
     itemEtb: 4620,
     reward: 800,
     total: 5420,
-    fee: 72,
-    payout: 5348,
+    fee: 120,
+    payout: 5300,
   });
 });
 
 test("rounds once on the line total", () => {
   // 19.99 × 3 × 141.4 = 8479.758; rounding per unit first would give 8481
-  assert.equal(quote({ unitPrice: 19.99, quantity: 3, rate: 141.4, reward: 500 }).itemEtb, 8480);
+  assert.equal(quote({ unitPrice: 19.99, quantity: 3, rate: 141.4, reward: 500, feePct: 15 }).itemEtb, 8480);
 });
 
 test("fee rounds half up", () => {
-  assert.equal(quote({ unitPrice: 1, quantity: 1, rate: 1, reward: 50 }).fee, 5); // 4.5
+  assert.equal(quote({ unitPrice: 1, quantity: 1, rate: 1, reward: 50, feePct: 15 }).fee, 8); // 7.5
+});
+
+test("traveler take-home is the reward minus the cut", () => {
+  assert.equal(takeHome(1200, 15), 1020);
+  assert.equal(takeHome(50, 15), 42);
 });
 
 test("parseAmount accepts separators and rejects non-positive input", () => {

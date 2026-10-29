@@ -80,7 +80,7 @@ select make_offer('20000000-0000-0000-0000-000000000005', '10000000-0000-0000-00
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 select accept_offer(o.id) from offers o where o.request_id in ('20000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005');
 do $$ begin
-  assert (select (item_etb, fee_etb, total_etb, payout_etb) = (4620, 72, 5420, 5348) from requests where id = '20000000-0000-0000-0000-000000000001'), 'Hana''s numbers';
+  assert (select (item_etb, fee_etb, total_etb, payout_etb) = (4620, 120, 5420, 5300) from requests where id = '20000000-0000-0000-0000-000000000001'), 'Hana''s numbers';
 end $$;
 
 -- Receiver cancels one before paying, then uploads proof and can no longer cancel.

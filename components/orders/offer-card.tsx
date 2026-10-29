@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { etb, parseEtb } from "@/lib/money";
+import { etb, parseEtb, takeHome } from "@/lib/money";
+import { TakeHomeLine } from "./take-home";
 import { counterError, DECLINE_REASONS, MAX_SUGGESTIONS, offerActions, suggestionError, timeLeft, type OfferView, type Side } from "@/lib/negotiation";
 import { cn } from "@/lib/utils";
 
@@ -61,9 +62,9 @@ export function ReasonPicker({ label, busy, onConfirm, onBack }: { label: string
 }
 
 export function OfferCard({
-  offer, events, viewer, names, itemEtb, now, busy, act,
+  offer, events, viewer, names, itemEtb, now, busy, act, feePct,
 }: {
-  offer: Offer; events: OfferEvent[]; viewer: Side; names: Record<Side, string>; itemEtb: number; now: Date; busy: boolean; act: Act;
+  offer: Offer; events: OfferEvent[]; viewer: Side; names: Record<Side, string>; itemEtb: number; now: Date; busy: boolean; act: Act; feePct?: number;
 }) {
   const [mode, setMode] = useState<"suggest" | "counter" | "decline" | "withdraw" | null>(null);
   const [amount, setAmount] = useState("");
@@ -117,6 +118,7 @@ export function OfferCard({
             </p>
           )}
           {mode === "suggest" && <p className="text-[13px] text-muted-foreground">{MAX_SUGGESTIONS - offer.suggestions_used} suggestions left</p>}
+          {mode === "counter" && <TakeHomeLine raw={amount} pct={feePct} />}
           <div className="flex gap-2">
             <Button type="submit" className={btn} disabled={busy}>
               Send
@@ -148,6 +150,7 @@ export function OfferCard({
             {has("accept_suggestion") && offer.suggestion_etb && (
               <Button className={btn} disabled={busy} onClick={() => void act("accept_suggestion", { p_offer: offer.id })}>
                 Accept {etb(offer.suggestion_etb)}
+                {feePct !== undefined && ` · you get ${etb(takeHome(offer.suggestion_etb, feePct))}`}
               </Button>
             )}
             {has("suggest") && (

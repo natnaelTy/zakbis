@@ -2,12 +2,15 @@ export type Currency = "USD" | "GBP" | "CNY" | "AED";
 
 export const originCurrency: Record<"US" | "GB" | "CN" | "AE", Currency> = { US: "USD", GB: "GBP", CN: "CNY", AE: "AED" };
 
-/** Whole-birr quote. Zakbis keeps 9% of the reward only; the receiver never pays the fee. */
-export function quote({ unitPrice, quantity, rate, reward }: { unitPrice: number; quantity: number; rate: number; reward: number }) {
+/** Whole-birr quote. Zakbis keeps feePct% of the reward only (15%, stored in the settings table); the receiver never pays it. */
+export function quote({ unitPrice, quantity, rate, reward, feePct }: { unitPrice: number; quantity: number; rate: number; reward: number; feePct: number }) {
   const itemEtb = Math.round(unitPrice * quantity * rate);
-  const fee = Math.round((reward * 9) / 100); // integer math first: 0.09 * 50 is 4.4999… in floating point
+  const fee = Math.round((reward * feePct) / 100); // integer math first: 0.09 * 50 is 4.4999… in floating point
   return { itemEtb, reward, total: itemEtb + reward, fee, payout: itemEtb + reward - fee };
 }
+
+/** What the traveler keeps of a reward after Zakbis's cut; same rounding as fee_etb in the database. */
+export const takeHome = (reward: number, feePct: number) => reward - Math.round((reward * feePct) / 100);
 
 export function parseAmount(raw: string): number | null {
   const t = raw.trim();

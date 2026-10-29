@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, invalidProps } from "@/components/request/item-fields";
+import { TakeHomeLine, useFeePct } from "@/components/orders/take-home";
 import { VerificationStatus } from "@/components/traveler/verification-status";
 import { createClient } from "@/lib/supabase/client";
 import { etb, parseEtb } from "@/lib/money";
@@ -24,6 +25,7 @@ export function MakeOffer({ id }: { id: string }) {
   const [reward, setReward] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const feePct = useFeePct();
   useEffect(() => void loadTravelerView(id).then(setView, () => setFailed(true)), [id]);
 
   if (failed)
@@ -121,6 +123,7 @@ export function MakeOffer({ id }: { id: string }) {
         <Field id="reward" label="Your reward (ETB)" error={error}>
           <Input id="reward" inputMode="numeric" value={reward} onChange={(e) => setReward(e.target.value)} {...invalidProps(error, "reward")} />
         </Field>
+        <TakeHomeLine raw={reward} pct={feePct} />
         <Button type="submit" disabled={busy || !chosen} className="h-12 w-full rounded-lg text-base font-bold">
           Send offer
         </Button>
