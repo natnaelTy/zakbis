@@ -57,7 +57,6 @@ create function paid(n text, reward int) returns void language plpgsql as $$
 begin
   perform agreed(n, reward);
   perform as_user('b1');
-  delete from payments where proof_path = '00000000-0000-0000-0000-0000000000b1/pay.jpg' and status = 'refunded';
   insert into ids select n || '_pay', submit_payment(id(n), 'telebirr', '00000000-0000-0000-0000-0000000000b1/pay.jpg');
   perform as_user('a1');
   perform decide_payment(id(n || '_pay'), true);
@@ -87,5 +86,84 @@ select as_user('b1');
 insert into requests (kind, trip_id, item_name, item_url, unit_price, currency, fee_pct)
   values ('trip', '10000000-0000-0000-0000-000000000001', 'Cheap cut', 'https://zara.com/x', 120, 'AED', 1);
 do $$ begin assert (select fee_pct from requests where item_name = 'Cheap cut') = 15, 'browser cannot set the cut'; end $$;
+
+-- 2. Bought: the traveler uploads the receipt and an item photo; the receiver checks it; a swap or "can't swap".
+select paid('ord1', 800);
+select paid('ord2', 800);
+select paid('ord3', 800);
+select as_user('b1');
+select must_fail($$select mark_bought(id('ord1'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg')$$, 'receiver marks bought', 'only the traveler');
+select as_user('c1');
+select must_fail($$select mark_bought(id('ord1'), '00000000-0000-0000-0000-0000000000b1/pay.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg')$$, 'someone else''s receipt', 'upload');
+select must_fail($$select mark_bought(id('ord1'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/missing.jpg')$$, 'photo never uploaded', 'upload');
+select mark_bought(id('ord1'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg');
+do $$ declare r requests; begin
+  select * into r from requests where id = id('ord1');
+  assert (r.status, r.photo_status) = ('purchased'::request_status, 'pending'::text), 'bought, photo waiting';
+  assert r.photo_due_at <= now() + interval '24 hours' and r.purchased_at is not null, 'check within 24 h';
+  assert last_note('b1') like '%bought%Check the photo%', 'receiver told to check';
+end $$;
+select must_fail($$select mark_bought(id('ord1'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg')$$, 'bought twice', 'no longer valid');
+reset role;
+update requests set buy_due_at = now() - interval '1 minute' where id = id('ord2');
+set local role authenticated;
+select must_fail($$select mark_bought(id('ord2'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg')$$, 'bought after the deadline', 'time is up');
+select must_fail($$select advance_request(id('ord3'), 'purchased', null, '00000000-0000-0000-0000-0000000000c1/r1.jpg')$$, 'old shortcut', 'use mark_bought');
+
+-- The receiver checks the photo.
+select must_fail($$select check_item(id('ord1'), false, 'wrong_color')$$, 'traveler checks', 'only the receiver');
+select as_user('b1');
+select must_fail($$select check_item(id('ord1'), false, 'blue please')$$, 'free-text reason', 'choose a reason');
+select check_item(id('ord1'), false, 'wrong_color');
+do $$ begin
+  assert (select (photo_status, photo_reason) from requests where id = id('ord1')) = ('rejected'::text, 'wrong_color'::text), 'rejected with reason';
+  assert last_note('c1') like '%Wrong color%', 'traveler told why';
+end $$;
+select as_user('c1');
+select swap_item(id('ord1'), '00000000-0000-0000-0000-0000000000c1/r2.jpg', '00000000-0000-0000-0000-0000000000c1/i2.jpg');
+do $$ declare r requests; begin
+  select * into r from requests where id = id('ord1');
+  assert (r.photo_status, r.receipt_path, r.item_photo_path) = ('pending'::text, '00000000-0000-0000-0000-0000000000c1/r2.jpg'::text, '00000000-0000-0000-0000-0000000000c1/i2.jpg'::text), 'swap waits for a new check';
+  assert last_note('b1') like '%swapped%', 'receiver told about the swap';
+end $$;
+select as_user('b1');
+select check_item(id('ord1'), true);
+do $$ begin
+  assert (select photo_status from requests where id = id('ord1')) = 'ok', 'looks right';
+  assert last_note('c1') like '%looks right%', 'traveler told';
+end $$;
+select as_user('c1');
+select must_fail($$select swap_item(id('ord1'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg')$$, 'swap after OK', 'no longer valid');
+select must_fail($$select cant_swap(id('ord1'))$$, 'can''t swap after OK', 'no longer valid');
+
+-- A late check, then "can't swap".
+select mark_bought(id('ord3'), '00000000-0000-0000-0000-0000000000c1/r1.jpg', '00000000-0000-0000-0000-0000000000c1/i1.jpg');
+reset role;
+update requests set photo_due_at = now() - interval '1 minute' where id = id('ord3');
+set local role authenticated;
+select as_user('b1');
+select must_fail($$select check_item(id('ord3'), false, 'wrong_size')$$, 'check after the deadline', 'time is up');
+reset role;
+update requests set photo_due_at = now() + interval '1 hour' where id = id('ord3');
+set local role authenticated;
+select check_item(id('ord3'), false, 'wrong_size');
+select as_user('b1');
+select must_fail($$select cant_swap(id('ord3'))$$, 'receiver says can''t swap', 'only the traveler');
+select as_user('c1');
+select cant_swap(id('ord3'));
+do $$ declare r requests; begin
+  select * into r from requests where id = id('ord3');
+  assert r.status = 'cancelled' and r.refund_decided_at is not null and r.hold is null, 'cancelled, refund decided';
+  assert last_note('b1') like '%can''t swap%refund%', 'receiver told about the refund';
+end $$;
+
+-- Who sees the receipt and the item photo.
+do $$ begin
+  assert can_see_proof('00000000-0000-0000-0000-0000000000c1/i2.jpg'), 'traveler sees the photo';
+end $$;
+select as_user('b1');
+do $$ begin assert can_see_proof('00000000-0000-0000-0000-0000000000c1/i2.jpg'), 'receiver sees the photo'; end $$;
+select as_user('d1');
+do $$ begin assert not can_see_proof('00000000-0000-0000-0000-0000000000c1/i2.jpg'), 'stranger doesn''t'; end $$;
 
 rollback;

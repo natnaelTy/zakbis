@@ -66,9 +66,13 @@ select submit_payment('20000000-0000-0000-0000-000000000001', 'telebirr', '00000
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select decide_payment(p.id, true) from payments p where p.request_id = '20000000-0000-0000-0000-000000000001' and p.status = 'pending';
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000d1/x.jpg')$$, 'receipt in someone else''s folder', 'your own');
-select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');
-select advance_request('20000000-0000-0000-0000-000000000001', 'landed');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000c1/r.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000c1/i.jpg');
+select must_fail($$select mark_bought('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000d1/x.jpg', '00000000-0000-0000-0000-0000000000c1/i.jpg')$$, 'receipt in someone else''s folder', 'upload');
+select mark_bought('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1/r.jpg', '00000000-0000-0000-0000-0000000000c1/i.jpg');
+-- Stand-in for the In Addis step, which needs an SMS code (after_paid_test covers it).
+reset role;
+update requests set photo_status = 'ok', status = 'landed', landed_at = now() where id = '20000000-0000-0000-0000-000000000001';
+set local role authenticated;
 
 -- I2: wrong codes are counted and lock delivery after 5 tries; an admin can reset.
 select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'delivered', '000000')$$, 'delivered via advance_request', 'deliver');
@@ -99,7 +103,7 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 -- The payment proof was uploaded above.
 insert into storage.objects (bucket_id, name) values ('screenshots', '00000000-0000-0000-0000-0000000000b1/shot.png');
 delete from storage.objects where bucket_id = 'proofs';
-do $$ begin assert (select count(*) from storage.objects where bucket_id = 'proofs') = 1, 'proof survives its owner''s delete'; end $$;
+do $$ begin assert (select count(*) from storage.objects where bucket_id = 'proofs' and name = '00000000-0000-0000-0000-0000000000b1/proof.jpg') = 1, 'proof survives its owner''s delete'; end $$;
 set local role anon;
 set local request.jwt.claim.sub = '';
 do $$ begin assert (select count(*) from storage.objects where bucket_id = 'screenshots') = 0, 'anon cannot list screenshots'; end $$;

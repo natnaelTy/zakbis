@@ -88,7 +88,8 @@ set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select decide_payment(p.id, true) from payments p where p.request_id = '20000000-0000-0000-0000-000000000001' and p.status = 'pending';
 select decide_verification('00000000-0000-0000-0000-0000000000c1', false, 'Other');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000c1/r.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000c1/i.jpg');
+select mark_bought('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1/r.jpg', '00000000-0000-0000-0000-0000000000c1/i.jpg');
 select must_fail($$select make_offer('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 300)$$, 'revoked traveler prices a new request', 'not verified');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 do $$ begin

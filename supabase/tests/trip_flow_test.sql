@@ -103,22 +103,19 @@ select decide_payment(p.id, true) from payments p where p.request_id = '20000000
 -- Traveler buys: traveler now sees the receiver's number, receiver still sees nothing.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') is null, 'no phone before purchase'; end $$;
-select advance_request('20000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/receipt.jpg');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000c1/receipt.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000c1/item.jpg');
+select mark_bought('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1/receipt.jpg', '00000000-0000-0000-0000-0000000000c1/item.jpg');
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') = '251911000001', 'traveler sees receiver after purchase'; end $$;
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') is null, 'receiver sees nothing before landing'; end $$;
 
--- Landing needs a verified Ethiopian number.
+-- Landing goes through the In Addis step with an SMS code (after_paid_test); here a stand-in.
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'landed')$$, 'landed without phone', 'Ethiopian');
+select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'landed')$$, 'old landed shortcut', 'use mark_bought');
 reset role;
-update auth.users set phone = '447700900000', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000c1';
+update auth.users set phone = '251922000002', phone_confirmed_at = now() where id = '00000000-0000-0000-0000-0000000000c1';
+update requests set photo_status = 'ok', status = 'landed', landed_at = now() where id = '20000000-0000-0000-0000-000000000001';
 set local role authenticated;
-select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'landed')$$, 'landed with UK phone', 'Ethiopian');
-reset role;
-update auth.users set phone = '251922000002' where id = '00000000-0000-0000-0000-0000000000c1';
-set local role authenticated;
-select advance_request('20000000-0000-0000-0000-000000000001', 'landed');
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 do $$ begin assert counterpart_phone('20000000-0000-0000-0000-000000000001') = '251922000002', 'receiver sees traveler after landing'; end $$;
 
@@ -135,8 +132,7 @@ do $$ begin assert deliver('20000000-0000-0000-0000-000000000001', (select code 
 do $$ begin assert (select count(*) from handover_codes) = 0, 'traveler never reads codes'; end $$;
 
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select advance_request('20000000-0000-0000-0000-000000000001', 'paid_out');
-do $$ begin assert (select status from requests where id = '20000000-0000-0000-0000-000000000001') = 'paid_out', 'paid out'; end $$;
+select must_fail($$select advance_request('20000000-0000-0000-0000-000000000001', 'paid_out')$$, 'old paid-out shortcut', 'mark_paid_out');
 
 -- A revealed number survives an admin cancel.
 reset role;

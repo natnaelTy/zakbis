@@ -97,3 +97,149 @@ begin
   end if;
   perform notify(r.receiver_id, 'receiver', r.id, format('%s for %s is agreed. Pay %s within 24 h.', etb_text(p_reward), r.item_name, etb_text(r.item_etb + p_reward)));
 end $$;
+
+-- Bought, photo check, swap ------------------------------------------------------------------
+
+alter table requests
+  add column item_photo_path text,
+  add column photo_status text check (photo_status in ('pending', 'ok', 'rejected')),
+  add column photo_reason text check (photo_reason in ('wrong_color', 'wrong_model', 'wrong_size', 'not_asked', 'other')),
+  add column photo_due_at timestamptz,
+  add column buy_due_at timestamptz,          -- null: the end of the trip's shop-by day; "Give 2 more days" sets it
+  add column hold text check (hold in ('not_bought', 'item_problem', 'cant_reach', 'no_receiver_phone')), -- an admin decides; clocks stop
+  add column held_at timestamptz,
+  add column refund_decided_at timestamptz,
+  add column handover_due_at timestamptz,
+  add column delivered_by_timeout boolean not null default false,
+  add column buy_reminded boolean not null default false,
+  add column arrival_reminded boolean not null default false,
+  add column handover_reminders int not null default 0;
+
+create function buy_due(r requests) returns timestamptz language sql stable security definer set search_path = public as $$
+  select coalesce(r.buy_due_at, (select end_of_addis_day(t.shop_by) from trips t where t.id = r.trip_id))
+$$;
+
+create function item_reason_label(k text) returns text language sql immutable as $$
+  select case k when 'wrong_color' then 'Wrong color' when 'wrong_model' then 'Wrong model' when 'wrong_size' then 'Wrong size'
+    when 'not_asked' then 'Not what I asked for' when 'other' then 'Other' end
+$$;
+
+-- A file the caller uploaded to the private proofs bucket.
+create function own_proof(p_path text) returns boolean language sql stable security definer set search_path = public as $$
+  select p_path is not null and split_part(p_path, '/', 1) = auth.uid()::text
+    and exists (select 1 from storage.objects where bucket_id = 'proofs' and name = p_path)
+$$;
+
+-- Cancels a paid order and queues the refund; the admin sends the money and marks it refunded.
+create function decide_refund(r requests, p_receiver_note text, p_traveler_note text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  update requests set status = 'cancelled', refund_decided_at = now(), hold = null, updated_at = now() where id = r.id;
+  perform notify(r.receiver_id, 'receiver', r.id, p_receiver_note);
+  perform notify(r.traveler_id, 'traveler', r.id, p_traveler_note);
+end $$;
+
+create function mark_bought(p_request uuid, p_receipt text, p_photo text) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+  due timestamptz;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.traveler_id is distinct from auth.uid() then raise exception 'only the traveler can do that'; end if;
+  if r.status <> 'paid' then raise exception 'this order is no longer valid for that'; end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if now() > buy_due(r) then raise exception 'time is up'; end if;
+  if not (own_proof(p_receipt) and own_proof(p_photo)) then raise exception 'upload the receipt and a photo of the item'; end if;
+  due := least(now() + interval '24 hours', buy_due(r));
+  update requests set status = 'purchased', purchased_at = now(), receipt_path = p_receipt, item_photo_path = p_photo,
+    photo_status = 'pending', photo_reason = null, photo_due_at = due, updated_at = now() where id = r.id;
+  perform notify(r.receiver_id, 'receiver', r.id, format('%s bought %s. Check the photo within %s h.', traveler_name(r.traveler_id), r.item_name, hours_left(due)));
+end $$;
+
+create function check_item(p_request uuid, p_ok boolean, p_reason text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.receiver_id is distinct from auth.uid() then raise exception 'only the receiver can do that'; end if;
+  if r.status <> 'purchased' or r.photo_status is distinct from 'pending' then raise exception 'this order is no longer valid for that'; end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if r.photo_due_at < now() then raise exception 'time is up'; end if;
+  if p_ok then
+    update requests set photo_status = 'ok', updated_at = now() where id = r.id;
+    perform notify(r.traveler_id, 'traveler', r.id, format('%s says %s looks right.', receiver_name(r.receiver_id), r.item_name));
+  else
+    if item_reason_label(p_reason) is null then raise exception 'choose a reason'; end if;
+    update requests set photo_status = 'rejected', photo_reason = p_reason, updated_at = now() where id = r.id;
+    perform notify(r.traveler_id, 'traveler', r.id, format('%s says %s isn''t right: %s. Swap it by the end of %s, or tell us you can''t.',
+      receiver_name(r.receiver_id), r.item_name, item_reason_label(p_reason), to_char(buy_due(r) at time zone 'Africa/Addis_Ababa' - interval '1 second', 'FMDD Mon')));
+  end if;
+end $$;
+
+create function swap_item(p_request uuid, p_receipt text, p_photo text) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+  due timestamptz;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.traveler_id is distinct from auth.uid() then raise exception 'only the traveler can do that'; end if;
+  if r.status <> 'purchased' or r.photo_status is distinct from 'rejected' then raise exception 'this order is no longer valid for that'; end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  if now() > buy_due(r) then raise exception 'time is up'; end if;
+  if not (own_proof(p_receipt) and own_proof(p_photo)) then raise exception 'upload the receipt and a photo of the item'; end if;
+  due := least(now() + interval '24 hours', buy_due(r));
+  update requests set receipt_path = p_receipt, item_photo_path = p_photo, photo_status = 'pending', photo_reason = null,
+    photo_due_at = due, updated_at = now() where id = r.id;
+  perform notify(r.receiver_id, 'receiver', r.id, format('%s swapped %s. Check the new photo within %s h.', traveler_name(r.traveler_id), r.item_name, hours_left(due)));
+end $$;
+
+create function cant_swap(p_request uuid) returns void language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.traveler_id is distinct from auth.uid() then raise exception 'only the traveler can do that'; end if;
+  if r.status <> 'purchased' or r.photo_status is distinct from 'rejected' then raise exception 'this order is no longer valid for that'; end if;
+  if r.hold is not null then raise exception 'this order is on hold'; end if;
+  perform decide_refund(r,
+    format('%s can''t swap %s, so the order is cancelled. We''ll refund you %s.', traveler_name(r.traveler_id), r.item_name, etb_text(r.total_etb)),
+    format('The order for %s is cancelled. Return the item to the shop if you can.', r.item_name));
+end $$;
+
+create or replace function can_see_proof(p_name text) returns boolean language sql stable security definer set search_path = public as $$
+  select is_admin() or exists (
+    select 1 from requests r
+    where auth.uid() in (r.receiver_id, r.traveler_id)
+      and (r.receipt_path = p_name or r.item_photo_path = p_name
+           or exists (select 1 from payments p where p.request_id = r.id and p.proof_path = p_name))
+  )
+$$;
+
+-- Every step after payment has its own function now; only the admin cancel remains here.
+create or replace function advance_request(p_id uuid, p_to request_status, p_code text default null, p_receipt text default null)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  r requests;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  select * into r from requests where id = p_id for update;
+  if not found then raise exception 'request not found'; end if;
+
+  if p_to in ('awaiting_payment', 'declined', 'paid') then
+    raise exception 'use make_offer, accept_offer, decline_request or decide_payment instead';
+  elsif p_to in ('purchased', 'landed', 'delivered', 'paid_out') then
+    raise exception 'use mark_bought, the In Addis step, deliver or mark_paid_out instead';
+  elsif p_to = 'cancelled' and r.status not in ('delivered', 'paid_out', 'cancelled', 'declined') and is_admin() then
+    null;
+  else
+    raise exception 'cannot move this request from % to %', r.status, p_to;
+  end if;
+
+  update requests set status = p_to, updated_at = now() where id = p_id;
+end $$;
+
+revoke execute on function buy_due(requests), own_proof(text), decide_refund(requests, text, text) from public, anon, authenticated;

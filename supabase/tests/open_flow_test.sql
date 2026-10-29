@@ -89,7 +89,8 @@ select submit_payment('30000000-0000-0000-0000-000000000001', 'telebirr', '00000
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select decide_payment(p.id, true) from payments p where p.request_id = '30000000-0000-0000-0000-000000000001' and p.status = 'pending';
 set local request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select advance_request('30000000-0000-0000-0000-000000000001', 'purchased', p_receipt => '00000000-0000-0000-0000-0000000000c1/r.jpg');
+insert into storage.objects (bucket_id, name) values ('proofs', '00000000-0000-0000-0000-0000000000c1/r.jpg'), ('proofs', '00000000-0000-0000-0000-0000000000c1/i.jpg');
+select mark_bought('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000c1/r.jpg', '00000000-0000-0000-0000-0000000000c1/i.jpg');
 do $$ begin assert (select status from requests where id = '30000000-0000-0000-0000-000000000001') = 'purchased', 'continues to purchased'; end $$;
 
 -- An expired open request disappears and refuses offers.
