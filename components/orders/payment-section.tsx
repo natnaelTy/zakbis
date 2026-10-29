@@ -9,6 +9,7 @@ import { timeLeft } from "@/lib/negotiation";
 import { paymentDetails, type PayMethod } from "@/lib/payment-details";
 import { cn } from "@/lib/utils";
 import { btn } from "./offer-card";
+import { PROOF_TYPES, uploadProof } from "./upload-proof";
 
 // Literal process.env reads so Next inlines them into the browser bundle.
 const DETAILS = paymentDetails({
@@ -17,7 +18,6 @@ const DETAILS = paymentDetails({
   NEXT_PUBLIC_ZAKBIS_CBE_ACCOUNT: process.env.NEXT_PUBLIC_ZAKBIS_CBE_ACCOUNT,
   NEXT_PUBLIC_ZAKBIS_CBE_NAME: process.env.NEXT_PUBLIC_ZAKBIS_CBE_NAME,
 });
-const TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export type LatestPayment = { id: string; status: "pending" | "confirmed" | "rejected" | "refunded"; reject_reason: string | null } | null;
 
@@ -45,14 +45,11 @@ export function PaymentSection({ requestId, total, dueAt, latest, now, onDone }:
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return setError("Add a screenshot of your transfer");
-    if (!TYPES.includes(file.type)) return setError("Use a JPG, PNG or WebP image");
+    if (!PROOF_TYPES.includes(file.type)) return setError("Use a JPG, PNG or WebP image");
     setBusy(true);
     setError(undefined);
-    const supabase = createClient();
-    const { data: auth } = await supabase.auth.getUser();
-    const path = `${auth.user?.id}/${crypto.randomUUID()}.${file.type.split("/")[1]}`;
-    const up = await supabase.storage.from("proofs").upload(path, file, { contentType: file.type });
-    const res = up.error ? up : await supabase.rpc("submit_payment", { p_request: requestId, p_method: method, p_proof: path });
+    const up = await uploadProof(file);
+    const res = "error" in up ? { error: { message: up.error } } : await createClient().rpc("submit_payment", { p_request: requestId, p_method: method, p_proof: up.path });
     setBusy(false);
     if (res.error) {
       const m = res.error.message;
@@ -110,7 +107,7 @@ export function PaymentSection({ requestId, total, dueAt, latest, now, onDone }:
       <label className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed text-base font-semibold focus-within:ring-3 focus-within:ring-ring/20">
         <CloudUpload aria-hidden className="size-5" />
         {file ? file.name : "Add transfer screenshot"}
-        <input type="file" accept={TYPES.join(",")} className="sr-only" onChange={(e) => (setFile(e.target.files?.[0] ?? null), setError(undefined))} />
+        <input type="file" accept={PROOF_TYPES.join(",")} className="sr-only" onChange={(e) => (setFile(e.target.files?.[0] ?? null), setError(undefined))} />
       </label>
       {error && (
         <p role="alert" className="text-base text-destructive">

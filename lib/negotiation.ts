@@ -13,6 +13,16 @@ export const DECLINE_REASONS: { key: DeclineReason; label: string }[] = [
 ];
 export const reasonLabel = (key: string | null) => DECLINE_REASONS.find((r) => r.key === key)?.label;
 
+/** Why the receiver says the bought item isn't right; same keys as item_reason_label() in migration 0011. */
+export const ITEM_REASONS = [
+  { key: "wrong_color", label: "Wrong color" },
+  { key: "wrong_model", label: "Wrong model" },
+  { key: "wrong_size", label: "Wrong size" },
+  { key: "not_asked", label: "Not what I asked for" },
+  { key: "other", label: "Other" },
+];
+export const itemReasonLabel = (key: string | null) => ITEM_REASONS.find((r) => r.key === key)?.label;
+
 // Same patterns as has_contact() in migration 0009: Ethiopian phone numbers (09/07…, 251…), +international numbers,
 // @handles, emails, links. Dates and amounts (2026-11-03, 1 500 000) pass.
 const CONTACT = [
@@ -59,7 +69,9 @@ export function timeLeft(dueIso: string, now: Date): string {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h`;
 }
 
-export type Stage = "answer" | "waiting" | "offers" | "no_offers" | "pay" | "checking_payment" | "paid" | "closed";
+export type Stage =
+  | "answer" | "waiting" | "offers" | "no_offers" | "pay" | "checking_payment" | "paid" | "closed"
+  | "buy" | "check_item" | "swap" | "bought" | "in_addis" | "on_hold" | "delivered" | "paid_out" | "refunding";
 
 export function stageLabel(stage: Stage, o: { counterpart: string | null; offers: number; dueAt: string | null; now: Date }): string {
   switch (stage) {
@@ -71,5 +83,14 @@ export function stageLabel(stage: Stage, o: { counterpart: string | null; offers
     case "checking_payment": return "Checking payment";
     case "paid": return "Paid";
     case "closed": return "Closed";
+    case "buy": return o.dueAt ? `Buy within ${timeLeft(o.dueAt, o.now)}` : "Buy it";
+    case "check_item": return "Check the photo";
+    case "swap": return "Swap needed";
+    case "bought": return "Bought";
+    case "in_addis": return "In Addis";
+    case "on_hold": return "Zakbis is checking";
+    case "delivered": return "Delivered";
+    case "paid_out": return "Paid out";
+    case "refunding": return "Refund on its way";
   }
 }

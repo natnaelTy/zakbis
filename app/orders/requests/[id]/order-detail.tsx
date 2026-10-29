@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { btn, OfferCard, ReasonPicker, type Offer, type OfferEvent } from "@/components/orders/offer-card";
+import { AfterPaid, type AfterPaidRequest } from "@/components/orders/after-paid";
 import { PaymentSection, type LatestPayment } from "@/components/orders/payment-section";
 import { TakeHomeLine, useFeePct } from "@/components/orders/take-home";
 import { createClient } from "@/lib/supabase/client";
@@ -13,7 +14,7 @@ import { etb, parseEtb } from "@/lib/money";
 import { countryLabel, type Country } from "@/lib/open-requests";
 import { reasonLabel, timeLeft, type Side } from "@/lib/negotiation";
 
-export type Request = {
+export type Request = AfterPaidRequest & {
   id: string; kind: "trip" | "open"; receiver_id: string; traveler_id: string | null; trip_id: string | null; status: string;
   item_name: string; item_url: string | null; screenshot_path: string | null; quantity: number; notes: string | null;
   unit_price: number; currency: string; item_etb: number; reward_etb: number | null; total_etb: number | null;
@@ -26,6 +27,9 @@ function friendly(m: string) {
   if (m.includes("no longer") || m.includes("not your turn")) return "This changed in the meantime. Here's the latest.";
   if (m.includes("please remove")) return "Please remove phone numbers, @handles, emails and links.";
   if (m.includes("already")) return "You already offered on this request.";
+  if (m.includes("on hold")) return "Zakbis is checking this order.";
+  if (m.includes("choose a reason") || m.includes("choose a problem")) return "Choose a reason.";
+  if (m.includes("upload the receipt")) return "Add the receipt and a photo of the item.";
   return "Couldn't save. Please try again.";
 }
 
@@ -118,7 +122,7 @@ export function OrderDetail({ id }: { id: string }) {
   const shownOffers = viewer === "receiver" ? offers.filter((o) => o.status === "pending" || o.status === "accepted" || r.kind === "trip") : mine ? [mine] : [];
   const priceless = r.kind === "trip" && offers.length === 0;
   const thumb = r.screenshot_path ? createClient().storage.from("screenshots").getPublicUrl(r.screenshot_path).data.publicUrl : null;
-  const closed = ["declined", "expired", "cancelled"].includes(r.status);
+  const closed = ["declined", "expired", "cancelled"].includes(r.status) && !r.refund_decided_at;
   const canCancel = viewer === "receiver" && (r.status === "open" || (r.status === "awaiting_payment" && payment?.status !== "pending"));
 
   function closedLine() {
@@ -191,6 +195,12 @@ export function OrderDetail({ id }: { id: string }) {
             <dd>{etb(r.reward_etb)}</dd>
             <dt className="font-semibold">Total</dt>
             <dd className="font-bold">{etb(r.total_etb)}</dd>
+            {viewer === "traveler" && r.payout_etb !== null && (
+              <>
+                <dt className="text-muted-foreground">You get</dt>
+                <dd>{etb(r.payout_etb)}</dd>
+              </>
+            )}
           </>
         )}
       </dl>
@@ -256,10 +266,8 @@ export function OrderDetail({ id }: { id: string }) {
       {r.status === "awaiting_payment" && viewer === "traveler" && (
         <p className="mt-5 text-base text-muted-foreground">{payment?.status === "pending" ? "Payment sent. Zakbis is checking it." : `Waiting for ${receiverName} to pay`}</p>
       )}
-      {["paid", "purchased", "landed", "delivered", "paid_out"].includes(r.status) && (
-        <p className="mt-5 rounded-xl border bg-card p-4 text-base font-semibold">
-          {viewer === "receiver" ? `Paid. ${travelerName(r.traveler_id)} will go shopping.` : `Paid. Go shopping for ${r.item_name}.`}
-        </p>
+      {(["paid", "purchased", "landed", "delivered", "paid_out"].includes(r.status) || r.refund_decided_at) && (
+        <AfterPaid req={r} viewer={viewer} travelerName={travelerName(r.traveler_id)} receiverName={receiverName} now={now} busy={busy} act={act} reload={load} />
       )}
 
       {canCancel &&

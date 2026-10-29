@@ -557,3 +557,50 @@ begin
     end if;
   end loop;
 end $$;
+
+-- Orders lists ------------------------------------------------------------------------
+
+-- Same as 0009's, with a stage for every step after payment.
+create or replace function my_orders(p_side text) returns table (
+  id uuid, kind request_kind, item_name text, quantity int, status request_status, total_etb int, item_etb int,
+  created_at timestamptz, stage text, due_at timestamptz, counterpart text, offers int, my_offer uuid
+) language sql stable security definer set search_path = public as $$
+  select m.id, m.kind, m.item_name, m.quantity, m.status, m.total_etb, m.item_etb, m.created_at, s.stage,
+    case when s.stage in ('answer', 'waiting') and m.status = 'open' then coalesce(o.due_at, m.answer_due_at)
+         when m.status = 'awaiting_payment' then m.payment_due_at
+         when s.stage in ('buy', 'swap') then buy_due(m)
+         when s.stage = 'check_item' then m.photo_due_at end,
+    case when p_side = 'traveler' then receiver_name(m.receiver_id)
+         when m.traveler_id is not null then traveler_name(m.traveler_id) end,
+    case when p_side = 'receiver' and m.kind = 'open' and m.status = 'open' then pc.n else 0 end,
+    case when p_side = 'traveler' then o.id end
+  from requests m
+  left join lateral (
+    select * from offers x where x.request_id = m.id
+      and (case when p_side = 'traveler' then x.traveler_id = auth.uid() else m.kind = 'trip' end)
+    order by x.created_at desc limit 1
+  ) o on true
+  left join lateral (select count(*)::int as n from offers x where x.request_id = m.id and x.status = 'pending') pc on true
+  cross join lateral (select case
+    when p_side = 'traveler' and m.status <> 'open' and m.traveler_id is distinct from auth.uid() then 'closed'
+    when m.hold is not null then 'on_hold'
+    when m.status = 'paid' then case when p_side = 'traveler' then 'buy' else 'paid' end
+    when m.status = 'purchased' and m.photo_status = 'pending' then case when p_side = 'receiver' then 'check_item' else 'bought' end
+    when m.status = 'purchased' and m.photo_status = 'rejected' then case when p_side = 'traveler' then 'swap' else 'bought' end
+    when m.status = 'purchased' then 'bought'
+    when m.status = 'landed' then 'in_addis'
+    when m.status in ('delivered', 'paid_out') then m.status::text
+    when m.status = 'cancelled' and p_side = 'receiver' and m.refund_decided_at is not null
+         and exists (select 1 from payments p where p.request_id = m.id and p.kind = 'escrow' and p.status = 'confirmed') then 'refunding'
+    when m.status = 'awaiting_payment' and has_pending_escrow(m.id) then 'checking_payment'
+    when m.status = 'awaiting_payment' then case when p_side = 'receiver' then 'pay' else 'waiting' end
+    when m.status <> 'open' then 'closed'
+    when p_side = 'receiver' and m.kind = 'open' then case when pc.n > 0 then 'offers' else 'no_offers' end
+    when o.id is null then case when p_side = 'traveler' then 'answer' else 'waiting' end
+    when o.status <> 'pending' then 'closed'
+    when o.turn = p_side then 'answer'
+    else 'waiting' end as stage) s
+  where case when p_side = 'receiver' then m.receiver_id = auth.uid()
+             else m.receiver_id <> auth.uid() and ((m.kind = 'trip' and m.traveler_id = auth.uid()) or has_offer_on(m.id)) end
+  order by m.created_at desc
+$$;

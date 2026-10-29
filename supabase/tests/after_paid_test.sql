@@ -323,4 +323,19 @@ select must_fail($$select mark_paid_out(id('ord5'))$$, 'pay out a refunded order
 select as_user('b1');
 select must_fail($$select mark_paid_out(id('ord4'))$$, 'receiver pays out', 'admins only');
 
+-- 5. The Orders list shows each step from each side.
+select as_user('c1');
+do $$ begin
+  assert (select stage from my_orders('traveler') where id = id('ord2')) = 'buy', 'traveler: buy';
+  assert (select stage from my_orders('traveler') where id = id('ord6')) = 'on_hold', 'held';
+  assert (select stage from my_orders('traveler') where id = id('ord1')) = 'paid_out', 'paid out';
+end $$;
+select as_user('b1');
+do $$ begin
+  assert (select stage from my_orders('receiver') where id = id('ord2')) = 'paid', 'receiver: shopping';
+  assert (select stage from my_orders('receiver') where id = id('ord4')) = 'delivered', 'delivered';
+  assert (select stage from my_orders('receiver') where id = id('ord5')) = 'refunding', 'refund on its way';
+  assert (select stage from my_orders('receiver') where id = id('ord3')) = 'closed', 'refunded is closed';
+end $$;
+
 rollback;

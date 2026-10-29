@@ -30,13 +30,15 @@ function historyLine(e: OfferEvent, viewer: Side, names: Record<Side, string>) {
 }
 
 /** Reason chips, then a confirm button: declining never takes free text (keeps contact details off the platform). */
-export function ReasonPicker({ label, busy, onConfirm, onBack }: { label: string; busy: boolean; onConfirm: (reason: string) => void; onBack: () => void }) {
+export function ReasonPicker({ label, busy, onConfirm, onBack, reasons = DECLINE_REASONS }: {
+  label: string; busy: boolean; onConfirm: (reason: string) => void; onBack: () => void; reasons?: { key: string; label: string }[];
+}) {
   const [reason, setReason] = useState<string>();
   return (
     <div className="space-y-3">
       <p className="text-base font-semibold">Why?</p>
       <div role="radiogroup" aria-label="Reason" className="flex flex-wrap gap-2">
-        {DECLINE_REASONS.map((r) => (
+        {reasons.map((r) => (
           <button
             key={r.key}
             type="button"

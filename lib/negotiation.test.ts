@@ -59,3 +59,17 @@ test("stage labels", () => {
   assert.equal(stageLabel("paid", base), "Paid");
   assert.equal(stageLabel("closed", base), "Closed");
 });
+
+test("after-paid stage labels", () => {
+  const base = { counterpart: "Hana", offers: 0, dueAt: null, now };
+  assert.equal(stageLabel("buy", base), "Buy it");
+  assert.equal(stageLabel("buy", { ...base, dueAt: new Date(now.getTime() + 5 * 3600_000).toISOString() }), "Buy within 5 h");
+  assert.equal(stageLabel("check_item", base), "Check the photo");
+  assert.equal(stageLabel("swap", base), "Swap needed");
+  assert.equal(stageLabel("bought", base), "Bought");
+  assert.equal(stageLabel("in_addis", base), "In Addis");
+  assert.equal(stageLabel("on_hold", base), "Zakbis is checking");
+  assert.equal(stageLabel("delivered", base), "Delivered");
+  assert.equal(stageLabel("paid_out", base), "Paid out");
+  assert.equal(stageLabel("refunding", base), "Refund on its way");
+});

@@ -20,7 +20,7 @@ export type OrderRow = {
   created_at: string;
 };
 
-const needsYou = (s: Stage) => s === "answer" || s === "offers" || s === "pay";
+const needsYou = (s: Stage) => ["answer", "offers", "pay", "buy", "check_item", "swap"].includes(s);
 
 /** The caller's requests (receiver) or the requests they answer and offer on (traveler); their turn first. */
 export function OrderList({ side }: { side: Side }) {
