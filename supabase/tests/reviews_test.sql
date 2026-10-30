@@ -248,6 +248,7 @@ do $$ begin
   assert (select status from requests where id = id('s_wait')) = 'cancelled', 'unpaid order closed';
   assert (select status from requests where id = id('s_paid')) = 'paid', 'paid order carries on';
 end $$;
+do $$ begin assert (select count(*) from reviews_to_check() where kind = 'blocked' and user_id = u('d1')) = 1, 'blocked receiver listed for unblocking'; end $$;
 set local role authenticated;
 select as_user('d1');
 select must_fail($$insert into requests (kind, trip_id, item_name, item_url, unit_price, currency) values ('trip', '10000000-0000-0000-0000-000000000001', 'x', 'https://a.com', 10, 'AED')$$, 'blocked receiver posts', 'can''t make new requests');
@@ -256,6 +257,7 @@ select must_fail($$select submit_payment(id('s_wait'), 'telebirr', 'x/y.jpg')$$,
 reset role;
 select as_user('a1');
 select unblock_receiver(u('d1'));
+do $$ begin assert (select count(*) from reviews_to_check() where kind = 'blocked') = 0, 'unblocked drops off'; end $$;
 set local role authenticated;
 select as_user('d1');
 insert into requests (kind, trip_id, item_name, item_url, unit_price, currency) values ('trip', '10000000-0000-0000-0000-000000000001', 'After unblock', 'https://a.com', 10, 'AED');

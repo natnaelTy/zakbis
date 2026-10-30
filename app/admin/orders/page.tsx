@@ -15,6 +15,7 @@ export default async function AdminOrdersPage() {
       <main className="px-4 md:px-0">
         <h1 className="pt-2 text-2xl font-bold tracking-[-0.02em]">Orders to act on</h1>
         <nav className="flex flex-wrap gap-x-4 text-base font-medium text-brand-text">
+          <Link href="/admin/reviews">Reviews</Link>
           <Link href="/admin/payments">Payment checks</Link>
           <Link href="/admin/trips">Trip checks</Link>
           <Link href="/admin/verifications">Traveler verifications</Link>

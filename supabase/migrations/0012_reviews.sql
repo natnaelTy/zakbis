@@ -399,7 +399,7 @@ begin
   delete from blocked_receivers where user_id = p_user;
 end $$;
 
--- Open flags and undecided reports, for the admin Reviews page.
+-- Open flags, undecided reports and blocked receivers, for the admin Reviews page.
 create function reviews_to_check() returns table (
   kind text, flag_id uuid, review_id uuid, user_id uuid, side text, name text, created_at timestamptz,
   rating int, report_reason text, review_text text, blocked boolean
@@ -416,6 +416,9 @@ begin
            case v.side when 'traveler' then traveler_name(v.subject_id) else receiver_name(v.subject_id) end,
            v.reported_at, v.rating, v.report_reason, v.text, false
       from reviews v where v.reported_at is not null and v.hidden_at is null and v.report_kept_at is null
+    union all
+    select 'blocked', null, null, b.user_id, 'receiver', receiver_name(b.user_id), b.blocked_at, null, null, null, true
+      from blocked_receivers b
     order by 7;
 end $$;
 
