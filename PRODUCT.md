@@ -21,8 +21,9 @@ This is a structured, escrow-backed version of what already happens informally i
 - **Request states:** open → awaiting payment → paid → purchased → delivered → paid out (or cancelled).
 - **Escrow is manual:** the receiver pays by Telebirr or bank transfer and uploads proof, an admin confirms it, and the admin pays the traveler out manually.
 - **Exchange rate:** an admin-set rate is locked onto each request when it's created.
-- **Phone numbers** are revealed to both sides only after payment. There is no in-app chat.
+- **Phone numbers** are revealed to both sides at "I'm in Addis". There is no in-app chat.
 - **Handover** happens in Addis Ababa only.
+- **Reviews** go both ways after a paid order ends: 1–5 stars, fixed tags, an optional comment (no contact details) and a private note to Zakbis. They stay hidden until both have reviewed or 14 days pass, ratings show from 3 reviews, and low ratings flag a traveler or receiver to an admin.
 
 ## Capabilities and Constraints
 - **Stack:** Next.js App Router with Supabase (database, login, file storage). The schema is in `supabase/migrations/0001_buy_me.sql`. Login is by Telegram, Google or a 6-digit email code, linkable to one account; phone numbers are confirmed by SMS code (AfroMessage): the traveler at every "I'm in Addis", the receiver once before the handover.
