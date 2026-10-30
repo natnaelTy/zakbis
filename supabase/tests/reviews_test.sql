@@ -137,4 +137,23 @@ update requests set review_open_at = now() - interval '15 days' where id = id('o
 set local role authenticated;
 select must_fail($$select rev('o2', 'b1', 2)$$, 'review after 14 days', 'time is up');
 
+-- 8. Day 7: a reminder to whoever hasn't reviewed, once. Day 14: a one-sided review shows anyway.
+reset role;
+select order_in('o3', 'b2', '10000000-0000-0000-0000-000000000002', 'delivered');
+set local role authenticated;
+select rev('o3', 'b2', 3, '{on_time}');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+update requests set review_open_at = now() - interval '8 days' where id = id('o3');
+select run_deadlines();
+select run_deadlines();
+do $$ begin
+  assert notes_like('c2', 'A week left to review Lidya%') = 1, 'reminder to the traveler, once';
+  assert notes_like('b2', 'A week left%') = 0, 'no reminder to someone who reviewed';
+  assert (select visible_at from reviews where request_id = id('o3')) is null, 'still hidden on day 8';
+end $$;
+update requests set review_open_at = now() - interval '15 days' where id = id('o3');
+select run_deadlines();
+do $$ begin assert (select visible_at from reviews where request_id = id('o3')) is not null, 'shown after 14 days'; end $$;
+
 rollback;
