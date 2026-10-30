@@ -172,6 +172,12 @@ create view review_tag_counts as
   group by v.subject_id, v.side, t.tag;
 grant select on review_tag_counts to anon, authenticated;
 
+-- What public lists show: visible and not hidden, for everyone (the table policy also lets authors and admins see more).
+create view public_reviews as
+  select id, request_id, author_id, subject_id, side, rating, tags, text, created_at, visible_at
+  from reviews where visible_at is not null and hidden_at is null;
+grant select on public_reviews to anon, authenticated;
+
 revoke execute on function check_flags(uuid, text), notify_admins(text), is_blocked_receiver(uuid) from public, anon, authenticated;
 
 -- Deadlines (the every-minute cron already calls run_deadlines) ------------------------------------------

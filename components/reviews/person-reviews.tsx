@@ -17,8 +17,8 @@ export function PersonReviews({ personId, side, name }: { personId: string; side
     void Promise.all([
       stats,
       supabase.from("review_tag_counts").select("tag, n").eq("subject_id", personId).eq("side", side),
-      supabase.from("reviews").select("id, author_id, rating, tags, text, created_at").eq("subject_id", personId).eq("side", side)
-        .not("visible_at", "is", null).order("visible_at", { ascending: false }).limit(5),
+      supabase.from("public_reviews").select("id, author_id, rating, tags, text, created_at").eq("subject_id", personId).eq("side", side)
+        .order("visible_at", { ascending: false }).limit(5),
     ]).then(async ([s, t, r]) => {
       const rows = r.data ?? [];
       const authors = [...new Set(rows.map((x) => x.author_id as string))];

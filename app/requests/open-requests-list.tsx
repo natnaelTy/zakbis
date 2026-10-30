@@ -58,6 +58,7 @@ export function OpenRequestsList() {
               <span className="block text-[13px] text-muted-foreground">
                 {r.receiverName} · {r.countries.map((c) => countryLabel[c]).join(", ")} · by {format(parseISO(r.needed_by), "d MMM")}
               </span>
+              <span className="block text-[13px] text-muted-foreground">{r.receiverLine}</span>
             </span>
             <span className="shrink-0 text-base font-semibold tabular-nums">≈ {etb(r.item_etb)}</span>
             <ArrowRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />

@@ -17,18 +17,20 @@ export default async function TripPage({ params }: { params: Promise<{ id: strin
   if (!trip) notFound();
   const [{ data: reviewRows }, { data: tagRows }] = await Promise.all([
     supabase
-      .from("reviews")
-      .select("id, rating, tags, text, created_at, author:profiles!reviews_author_id_fkey(first_name)")
+      .from("public_reviews")
+      .select("id, rating, tags, text, created_at, author_id")
       .eq("subject_id", trip.travelerId)
       .eq("side", "traveler")
-      .not("visible_at", "is", null)
       .order("visible_at", { ascending: false })
       .limit(20),
     supabase.from("review_tag_counts").select("tag, n").eq("subject_id", trip.travelerId).eq("side", "traveler"),
   ]);
+  const authorIds = [...new Set((reviewRows ?? []).map((r) => r.author_id as string))];
+  const { data: authors } = authorIds.length ? await supabase.from("profiles").select("id, first_name").in("id", authorIds) : { data: [] };
+  const firstName = new Map((authors ?? []).map((a) => [a.id as string, a.first_name as string | null]));
   const reviews: ReviewItem[] = (reviewRows ?? []).map((r) => ({
     id: r.id as string,
-    author: (r.author as unknown as { first_name: string | null } | null)?.first_name ?? "Receiver",
+    author: firstName.get(r.author_id as string) ?? "Receiver",
     rating: r.rating as number,
     tags: (r.tags as string[] | null) ?? [],
     text: r.text as string | null,

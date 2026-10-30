@@ -39,15 +39,28 @@ export function ReviewForm({ requestId, subjectSide, other, onDone }: { requestI
   return (
     <form onSubmit={send} noValidate className="space-y-4">
       <h2 className="text-lg font-bold">How was {other}?</h2>
-      <div role="radiogroup" aria-label="Rating" className="flex gap-1">
+      <p id="rating-label" className="text-base font-semibold">Rating</p>
+      {/* Radio pattern: one tab stop, arrow keys move and select. */}
+      <div role="radiogroup" aria-labelledby="rating-label" aria-describedby={error ? "review-error" : undefined} className="-mt-3 flex gap-1"
+        onKeyDown={(e) => {
+          const step = e.key === "ArrowRight" || e.key === "ArrowUp" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowDown" ? -1 : 0;
+          if (!step) return;
+          e.preventDefault();
+          const next = Math.min(5, Math.max(1, (rating || (step > 0 ? 0 : 6)) + step));
+          setRating(next);
+          setError(undefined);
+          e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=radio]")[next - 1]?.focus();
+        }}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button key={n} type="button" role="radio" aria-checked={rating === n} aria-label={`${n} ${n === 1 ? "star" : "stars"}`}
+            tabIndex={rating ? (rating === n ? 0 : -1) : n === 1 ? 0 : -1}
             onClick={() => (setRating(n), setError(undefined))} className="rounded-md p-1 focus-visible:ring-3 focus-visible:ring-ring/20 focus-visible:outline-none">
             <Star aria-hidden className={cn("size-8", n <= rating ? "fill-current text-foreground" : "text-muted-foreground")} />
           </button>
         ))}
       </div>
-      <div role="group" aria-label="Tags" className="flex flex-wrap gap-2">
+      <p id="tags-label" className="text-base font-semibold">What went well? (optional)</p>
+      <div role="group" aria-labelledby="tags-label" className="-mt-3 flex flex-wrap gap-2">
         {list.map((t) => {
           const on = tags.includes(t.key);
           return (
@@ -67,7 +80,7 @@ export function ReviewForm({ requestId, subjectSide, other, onDone }: { requestI
         <p id="review-note-hint" className="text-[13px] text-muted-foreground">Only Zakbis sees this.</p>
         <Textarea id="review-note" aria-describedby="review-note-hint" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
-      {error && <p role="alert" className="text-base text-destructive">{error}</p>}
+      {error && <p id="review-error" role="alert" className="text-base text-destructive">{error}</p>}
       <Button type="submit" className={`${btn} w-full`} disabled={busy}>
         Send review
       </Button>

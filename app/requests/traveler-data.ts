@@ -1,4 +1,5 @@
 import { loadMyVerification } from "@/components/traveler/verification-status";
+import { summaryLine } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/client";
 import { verificationState } from "@/lib/account";
 import { addisToday, isVisibleToTrip, type Country } from "@/lib/open-requests";
@@ -7,7 +8,7 @@ import { postGate, type MyTrip } from "@/lib/trip-post";
 
 export type OpenRequestCard = {
   id: string; item_name: string; quantity: number; item_etb: number; countries: Country[]; needed_by: string; notes: string | null;
-  item_url: string | null; screenshot_path: string | null; receiver_id: string; receiverName: string; receiverPhoto: string | null;
+  item_url: string | null; screenshot_path: string | null; receiver_id: string; receiverName: string; receiverPhoto: string | null; receiverLine: string;
 };
 
 const toTrip = (t: MyTrip) => ({ originCountry: t.origin_country, arrivalDate: t.arrival_date, shopBy: t.shop_by });
@@ -39,12 +40,24 @@ export async function loadTravelerView(only?: string) {
   const matching = (reqs ?? []).filter((r) => !done.has(r.id) && trips.some((t) => serves(r as OpenRequestCard, t)));
 
   const ids = [...new Set(matching.map((r) => r.receiver_id as string))];
-  const { data: people } = ids.length ? await supabase.from("profiles").select("id, first_name, receiver_photo_path").in("id", ids) : { data: [] };
+  const [{ data: people }, { data: stats }] = ids.length
+    ? await Promise.all([
+        supabase.from("profiles").select("id, first_name, receiver_photo_path").in("id", ids),
+        supabase.from("receiver_stats").select("receiver_id, rating, review_count").in("receiver_id", ids),
+      ])
+    : [{ data: [] }, { data: [] }];
   const byId = new Map((people ?? []).map((p) => [p.id as string, p]));
+  const statsOf = new Map((stats ?? []).map((s) => [s.receiver_id as string, s]));
   const photoUrl = (path: string) => supabase.storage.from("receiver-photos").getPublicUrl(path).data.publicUrl;
   const requests: OpenRequestCard[] = matching.map((r) => {
     const p = byId.get(r.receiver_id);
-    return { ...(r as Omit<OpenRequestCard, "receiverName" | "receiverPhoto">), receiverName: p?.first_name ?? "Receiver", receiverPhoto: p?.receiver_photo_path ? receiverPhotoSrc(p.receiver_photo_path, photoUrl) : null };
+    const s = statsOf.get(r.receiver_id);
+    return {
+      ...(r as Omit<OpenRequestCard, "receiverName" | "receiverPhoto" | "receiverLine">),
+      receiverName: p?.first_name ?? "Receiver",
+      receiverPhoto: p?.receiver_photo_path ? receiverPhotoSrc(p.receiver_photo_path, photoUrl) : null,
+      receiverLine: summaryLine({ rating: s?.rating == null ? null : Number(s.rating), count: Number(s?.review_count ?? 0), tags: [] }, "receiver"),
+    };
   });
   return { verification, ready: true as const, trips, requests, alreadyOffered: only ? done.has(only) : false, tripsFor: (r: OpenRequestCard) => trips.filter((t) => serves(r, t)) };
 }

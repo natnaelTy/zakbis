@@ -140,6 +140,12 @@ do $$ begin
   assert (select review_count from traveler_stats where traveler_id = u('c1')) = 0, 'hidden not counted';
 end $$;
 reset role;
+set local role authenticated;
+select as_user('a1');
+do $$ begin assert (select count(*) from public_reviews where request_id = id('o1')) = 1, 'public list drops a hidden review even for admins'; end $$;
+select as_user('b1');
+do $$ begin assert (select count(*) from public_reviews where request_id = id('o1')) = 1, 'and for its author'; end $$;
+reset role;
 update reviews set hidden_at = null where id = id('r1');
 
 -- 6. A refund decided after payment opens the window too.
