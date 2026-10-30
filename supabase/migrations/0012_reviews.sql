@@ -57,10 +57,56 @@ create function review_tag_ok(p_side text, p_tags text[]) returns boolean langua
                                else array['easy_to_reach', 'on_time', 'polite', 'clear_request'] end
 $$;
 
--- Filled in below (Keeping reviews clean): flags a person whose visible reviews turn low.
+create table review_flags (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles on delete cascade,
+  side text not null check (side in ('traveler', 'receiver')),
+  created_at timestamptz not null default clock_timestamp(),
+  decided_at timestamptz,
+  decision text check (decision in ('dismiss', 'revoke', 'block'))
+);
+alter table review_flags enable row level security;
+
+create table blocked_receivers (
+  user_id uuid primary key references profiles on delete cascade,
+  blocked_at timestamptz not null default now(),
+  blocked_by uuid references profiles
+);
+alter table blocked_receivers enable row level security;
+
+create function is_blocked_receiver(uid uuid) returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from blocked_receivers where user_id = uid)
+$$;
+
+create function notify_admins(p_body text) returns void language sql security definer set search_path = public as $$
+  select notify(id, 'receiver', null, p_body) from profiles where is_admin
+$$;
+
+-- Flags a person when, among visible reviews about them on that side, 2 of the last 10 are 1-2 stars, or 3+ average under 3.5.
+-- Once until an admin decides; after a dismissal, only a newer 1-2 star review brings them back.
 create function check_flags(p_user uuid, p_side text) returns void language plpgsql security definer set search_path = public as $$
+declare
+  dismissed timestamptz;
+  low int;
+  n int;
+  average numeric;
 begin
-  null;
+  if p_user is null or exists (select 1 from review_flags where user_id = p_user and side = p_side and decided_at is null) then return; end if;
+  if (p_side = 'receiver' and is_blocked_receiver(p_user)) or (p_side = 'traveler' and not is_verified_traveler(p_user)) then return; end if;
+  select max(decided_at) into dismissed from review_flags where user_id = p_user and side = p_side and decision = 'dismiss';
+  if dismissed is not null and not exists (select 1 from reviews where subject_id = p_user and side = p_side and hidden_at is null
+                                           and visible_at > dismissed and rating <= 2) then
+    return;
+  end if;
+  select count(*) filter (where rating <= 2) into low from (
+    select rating from reviews where subject_id = p_user and side = p_side and visible_at is not null and hidden_at is null
+    order by visible_at desc limit 10) last10;
+  select count(*), avg(rating) into n, average from reviews where subject_id = p_user and side = p_side and visible_at is not null and hidden_at is null;
+  if low >= 2 or (n >= 3 and average < 3.5) then
+    insert into review_flags (user_id, side) values (p_user, p_side);
+    perform notify_admins(format('Reviews to check: %s (%s) has low ratings.',
+      case p_side when 'traveler' then traveler_name(p_user) else receiver_name(p_user) end, p_side));
+  end if;
 end $$;
 
 create function submit_review(p_request uuid, p_rating int, p_tags text[] default '{}', p_text text default null, p_private text default null)
@@ -89,7 +135,7 @@ begin
   if note is not null then insert into review_notes (review_id, note) values (new_id, note); end if;
   -- Both sides have now reviewed: show both, and check both people's records.
   if exists (select 1 from reviews where request_id = r.id and author_id = subject) then
-    update reviews set visible_at = now() where request_id = r.id and visible_at is null;
+    update reviews set visible_at = clock_timestamp() where request_id = r.id and visible_at is null;
     perform check_flags(subject, side);
     perform check_flags(uid, case side when 'traveler' then 'receiver' else 'traveler' end);
   end if;
@@ -126,7 +172,7 @@ create view review_tag_counts as
   group by v.subject_id, v.side, t.tag;
 grant select on review_tag_counts to anon, authenticated;
 
-revoke execute on function check_flags(uuid, text) from public, anon, authenticated;
+revoke execute on function check_flags(uuid, text), notify_admins(text), is_blocked_receiver(uuid) from public, anon, authenticated;
 
 -- Deadlines (the every-minute cron already calls run_deadlines) ------------------------------------------
 
@@ -264,7 +310,7 @@ begin
   end loop;
 
   -- 15. Reviews still hidden when the 14-day window closes: show them anyway, and check the people reviewed.
-  for x in update reviews v set visible_at = now() from requests q
+  for x in update reviews v set visible_at = clock_timestamp() from requests q
            where q.id = v.request_id and v.visible_at is null and q.review_open_at + interval '14 days' < now()
            returning v.subject_id, v.side loop
     perform check_flags(x.subject_id, x.side);
@@ -282,4 +328,187 @@ begin
       perform notify(x.traveler_id, 'traveler', x.id, format('A week left to review %s for %s.', receiver_name(x.receiver_id), x.item_name));
     end if;
   end loop;
+end $$;
+
+-- Keeping reviews clean: reports, admin decisions on flags, receiver blocks ------------------------------------
+
+-- The person reviewed reports a visible review once; an admin hides or keeps it.
+create function report_review(p_review uuid, p_reason text) returns void language plpgsql security definer set search_path = public as $$
+declare
+  v reviews;
+begin
+  select * into v from reviews where id = p_review for update;
+  if not found or v.subject_id is distinct from auth.uid() or v.visible_at is null or v.hidden_at is not null then
+    raise exception 'only the person reviewed can report a review';
+  end if;
+  if p_reason is null or p_reason not in ('contact', 'abusive', 'untrue') then raise exception 'choose a reason'; end if;
+  if v.reported_at is not null then raise exception 'you already reported this review'; end if;
+  update reviews set reported_at = now(), report_reason = p_reason where id = v.id;
+  perform notify_admins(format('A review of %s was reported: %s.',
+    case v.side when 'traveler' then traveler_name(v.subject_id) else receiver_name(v.subject_id) end,
+    case p_reason when 'contact' then 'contact details' when 'abusive' then 'abusive' else 'not true' end));
+end $$;
+
+create function decide_report(p_review uuid, p_hide boolean) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  update reviews set hidden_at = case when p_hide then now() end, report_kept_at = case when not p_hide then now() end
+    where id = p_review and reported_at is not null and hidden_at is null and report_kept_at is null;
+  if not found then raise exception 'this report was already decided'; end if;
+end $$;
+
+-- Closes a receiver's unpaid activity (open requests, pending offers, orders waiting for payment with no screenshot) and blocks new ones.
+create function block_receiver(p_user uuid) returns void language plpgsql security definer set search_path = public as $$
+declare
+  x record;
+  t uuid;
+begin
+  insert into blocked_receivers (user_id, blocked_by) values (p_user, auth.uid()) on conflict do nothing;
+  for x in update requests set status = 'cancelled', updated_at = now()
+           where receiver_id = p_user and (status = 'open' or (status = 'awaiting_payment' and not has_pending_escrow(id)))
+           returning id, traveler_id, item_name loop
+    perform log_offer(o.id, null, 'close', null) from offers o where o.request_id = x.id and o.status = 'pending';
+    for t in with c as (update offers set status = 'closed' where request_id = x.id and status = 'pending' returning traveler_id)
+             select traveler_id from c union select x.traveler_id where x.traveler_id is not null loop
+      perform notify(t, 'traveler', x.id, format('The request for %s closed.', x.item_name));
+    end loop;
+  end loop;
+end $$;
+
+-- dismiss for anyone; revoke a traveler's verification; block a receiver from new requests.
+create function resolve_flag(p_flag uuid, p_action text) returns void language plpgsql security definer set search_path = public as $$
+declare
+  f review_flags;
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  select * into f from review_flags where id = p_flag for update;
+  if not found or f.decided_at is not null then raise exception 'this flag was already decided'; end if;
+  if p_action = 'revoke' and f.side = 'traveler' then
+    perform decide_verification(f.user_id, false, 'Other');
+  elsif p_action = 'block' and f.side = 'receiver' then
+    perform block_receiver(f.user_id);
+  elsif p_action <> 'dismiss' then
+    raise exception 'that is not an option for this flag';
+  end if;
+  update review_flags set decided_at = clock_timestamp(), decision = p_action where id = f.id;
+end $$;
+
+create function unblock_receiver(p_user uuid) returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  delete from blocked_receivers where user_id = p_user;
+end $$;
+
+-- Open flags and undecided reports, for the admin Reviews page.
+create function reviews_to_check() returns table (
+  kind text, flag_id uuid, review_id uuid, user_id uuid, side text, name text, created_at timestamptz,
+  rating int, report_reason text, review_text text, blocked boolean
+) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  return query
+    select 'flag'::text, f.id, null::uuid, f.user_id, f.side,
+           case f.side when 'traveler' then traveler_name(f.user_id) else receiver_name(f.user_id) end,
+           f.created_at, null::int, null::text, null::text, is_blocked_receiver(f.user_id)
+      from review_flags f where f.decided_at is null
+    union all
+    select 'report', null, v.id, v.subject_id, v.side,
+           case v.side when 'traveler' then traveler_name(v.subject_id) else receiver_name(v.subject_id) end,
+           v.reported_at, v.rating, v.report_reason, v.text, false
+      from reviews v where v.reported_at is not null and v.hidden_at is null and v.report_kept_at is null
+    order by 7;
+end $$;
+
+-- The last 20 reviews about someone on one side, hidden ones and private notes included.
+create function reviews_about(p_user uuid, p_side text) returns table (
+  review_id uuid, rating int, tags text[], text text, note text, author_name text, created_at timestamptz, hidden_at timestamptz
+) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not is_admin() then raise exception 'admins only'; end if;
+  return query
+    select v.id, v.rating, v.tags, v.text, n.note,
+           case v.side when 'traveler' then receiver_name(v.author_id) else traveler_name(v.author_id) end, v.created_at, v.hidden_at
+    from reviews v left join review_notes n on n.review_id = v.id
+    where v.subject_id = p_user and v.side = p_side
+    order by v.created_at desc limit 20;
+end $$;
+
+revoke execute on function block_receiver(uuid) from public, anon, authenticated;
+
+-- A blocked receiver can't post, price or pay.
+create or replace function requests_before_insert() returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  shop date;
+begin
+  new.receiver_id := auth.uid();
+  if new.receiver_id is null then raise exception 'login required'; end if;
+  if is_blocked_receiver(new.receiver_id) then raise exception 'your account can''t make new requests'; end if;
+  if (select first_name from profiles where id = new.receiver_id) is null then raise exception 'set up your receiver side first'; end if;
+  if has_contact(new.item_name) or has_contact(new.notes) then raise exception 'please remove phone numbers, @handles, emails and links'; end if;
+  new.status := 'open';
+  new.reward_etb := null; -- the traveler names it; it's fixed when a price is accepted
+  new.receipt_path := null;
+  new.accepted_at := null;
+  new.purchased_at := null;
+  new.landed_at := null;
+  new.answer_due_at := null;
+  new.answer_reminded := false;
+  new.payment_due_at := null;
+  new.payment_left := null;
+  new.payment_reminded := false;
+  new.decline_reason := null;
+  new.fee_pct := fee_pct(); -- the cut is Zakbis's to set, never the browser's
+  select etb_per_unit into new.fx_rate from fx_rates where currency = new.currency;
+  if not found then raise exception 'no fx rate for %', new.currency; end if;
+
+  if new.kind = 'trip' then
+    select traveler_id, shop_by into new.traveler_id, shop from trips where id = new.trip_id and shop_by >= addis_today() and status = 'live';
+    if not found then raise exception 'trip is not available'; end if;
+    if new.traveler_id = new.receiver_id then raise exception 'cannot request on your own trip'; end if;
+    if not is_verified_traveler(new.traveler_id) then raise exception 'this traveler is not verified'; end if;
+    new.answer_due_at := least(now() + interval '48 hours', end_of_addis_day(shop));
+    new.answer_reminded := new.answer_due_at - now() <= interval '24 hours';
+  else
+    new.traveler_id := null;
+    new.trip_id := null;
+    if new.needed_by is null or new.needed_by not between addis_today() + 3 and addis_today() + 60 then
+      raise exception 'needed by must be 3 to 60 days ahead';
+    end if;
+  end if;
+  return new;
+end $$;
+
+create or replace function check_turn(o offers, r requests, p_who text) returns void language plpgsql stable as $$
+begin
+  if p_who = 'receiver' and is_blocked_receiver(auth.uid()) then raise exception 'your account can''t make new requests'; end if;
+  if p_who = 'receiver' and r.receiver_id is distinct from auth.uid() then raise exception 'only the receiver can do that'; end if;
+  if p_who = 'traveler' and o.traveler_id is distinct from auth.uid() then raise exception 'only the traveler can do that'; end if;
+  if o.status <> 'pending' or r.status <> 'open' then raise exception 'this offer is no longer valid'; end if;
+  if o.turn <> p_who then raise exception 'not your turn'; end if;
+  if o.due_at < now() then raise exception 'time is up'; end if;
+end $$;
+
+create or replace function submit_payment(p_request uuid, p_method text, p_proof text) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  r requests;
+  new_id uuid;
+begin
+  select * into r from requests where id = p_request for update;
+  if not found or r.receiver_id is distinct from auth.uid() then raise exception 'only the receiver can pay'; end if;
+  if is_blocked_receiver(auth.uid()) then raise exception 'your account can''t make new requests'; end if;
+  if r.status <> 'awaiting_payment' then raise exception 'this order is not waiting for payment'; end if;
+  if has_pending_escrow(r.id) then raise exception 'we already have your screenshot; we''re checking it'; end if;
+  if r.payment_due_at < now() then raise exception 'time is up'; end if;
+  if not exists (select 1 from trips where id = r.trip_id and status = 'live') then raise exception 'this trip is no longer open'; end if;
+  if p_method is null or p_method not in ('telebirr', 'bank') then raise exception 'choose Telebirr or bank'; end if;
+  if p_proof is null or split_part(p_proof, '/', 1) <> auth.uid()::text
+     or not exists (select 1 from storage.objects where bucket_id = 'proofs' and name = p_proof) then
+    raise exception 'upload your payment screenshot';
+  end if;
+  insert into payments (request_id, kind, amount_etb, proof_path, method) values (r.id, 'escrow', r.total_etb, p_proof, p_method)
+    returning id into new_id;
+  update requests set payment_left = payment_due_at - now() where id = r.id;
+  perform notify(r.traveler_id, 'traveler', r.id, format('%s sent payment for %s. We''re checking it.', receiver_name(r.receiver_id), r.item_name));
+  return new_id;
 end $$;

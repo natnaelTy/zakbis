@@ -58,6 +58,22 @@ begin
   return submit_review(id(n), stars, tags, body, note);
 end $$;
 
+-- A delivered order where both sides review (so both reviews show at once). Run as superuser.
+create function done_pair(n text, r text, trip uuid, by_receiver int, by_traveler int) returns void language plpgsql as $$
+declare t text := case when trip = '10000000-0000-0000-0000-000000000001' then 'c1' else 'c2' end;
+begin
+  perform order_in(n, r, trip, 'delivered');
+  perform rev(n, r, by_receiver);
+  perform rev(n, t, by_traveler);
+  perform set_config('request.jwt.claim.sub', '', true);
+end $$;
+create function flag_of(x text) returns uuid language sql stable security definer as $$
+  select id from review_flags where user_id = u(x) and decided_at is null
+$$;
+create function open_flags(x text, sd text) returns bigint language sql stable security definer as $$
+  select count(*) from review_flags where user_id = u(x) and side = sd and decided_at is null
+$$;
+
 -- 1. The window opens when the order is delivered (or a refund is decided after payment), and both sides are asked.
 select order_in('o1', 'b1', '10000000-0000-0000-0000-000000000001', 'paid');
 set local role authenticated;
@@ -155,5 +171,99 @@ end $$;
 update requests set review_open_at = now() - interval '15 days' where id = id('o3');
 select run_deadlines();
 do $$ begin assert (select visible_at from reviews where request_id = id('o3')) is not null, 'shown after 14 days'; end $$;
+
+-- 9. Flags: 2 of the last 10 at 1-2 stars, or an average under 3.5 from 3 reviews; once until decided; a dismissal holds until a new low review.
+reset role;
+select done_pair('f1', 'b2', '10000000-0000-0000-0000-000000000001', 1, 5);
+do $$ begin assert open_flags('c1', 'traveler') = 0, 'one low review isn''t enough'; end $$;
+select done_pair('f2', 'd1', '10000000-0000-0000-0000-000000000001', 1, 5);
+do $$ begin
+  assert open_flags('c1', 'traveler') = 1, 'second low review flags Hana';
+  assert notes_like('a1', 'Reviews to check: Hana (traveler)%') = 1, 'admin told';
+end $$;
+select done_pair('f3', 'b1', '10000000-0000-0000-0000-000000000001', 1, 5);
+do $$ begin assert (select count(*) from review_flags where user_id = u('c1')) = 1, 'no second flag while one is open'; end $$;
+select as_user('a1');
+select resolve_flag(flag_of('c1'), 'dismiss');
+select set_config('request.jwt.claim.sub', '', true);
+select done_pair('f4', 'b2', '10000000-0000-0000-0000-000000000001', 4, 5);
+do $$ begin assert open_flags('c1', 'traveler') = 0, 'dismissed: no flag without a new low review'; end $$;
+select done_pair('f5', 'd1', '10000000-0000-0000-0000-000000000001', 2, 5);
+do $$ begin assert open_flags('c1', 'traveler') = 1, 'a new low review flags again'; end $$;
+-- The average rule, with no 1-2 star reviews: Dawit has Lidya's 3, then two more 3s.
+select done_pair('f6', 'b1', '10000000-0000-0000-0000-000000000002', 3, 5);
+do $$ begin assert open_flags('c2', 'traveler') = 0, 'average needs 3 reviews'; end $$;
+select done_pair('f7', 'd1', '10000000-0000-0000-0000-000000000002', 3, 5);
+do $$ begin assert open_flags('c2', 'traveler') = 1, 'average 3.0 from 3 reviews flags Dawit'; end $$;
+-- Receivers too: Sami gets two 1-star reviews from travelers.
+select done_pair('f8', 'd1', '10000000-0000-0000-0000-000000000001', 5, 1);
+select done_pair('f9', 'd1', '10000000-0000-0000-0000-000000000002', 5, 1);
+do $$ begin assert open_flags('d1', 'receiver') = 1, 'Sami flagged as a receiver'; end $$;
+
+-- 10. Reports: only the person reviewed, once; an admin hides or keeps it.
+set local role authenticated;
+select as_user('b1');
+select must_fail($$select report_review(id('r1'), 'contact')$$, 'author reports own review', 'only the person reviewed');
+select as_user('d1');
+select must_fail($$select report_review(id('r1'), 'contact')$$, 'stranger reports', 'only the person reviewed');
+select as_user('c1');
+select must_fail($$select report_review(id('r1'), 'rude')$$, 'unknown reason', 'choose a reason');
+select report_review(id('r1'), 'untrue');
+select must_fail($$select report_review(id('r1'), 'abusive')$$, 'report twice', 'already');
+do $$ begin assert notes_like('a1', 'A review of Hana was reported%') = 1, 'admin told about the report'; end $$;
+select must_fail($$select decide_report(id('r1'), true)$$, 'non-admin decides', 'admins only');
+select must_fail($$select * from reviews_to_check()$$, 'non-admin reads the list', 'admins only');
+select must_fail($$select * from reviews_about(u('c1'), 'traveler')$$, 'non-admin reads notes', 'admins only');
+select as_user('a1');
+do $$ begin
+  assert (select count(*) from reviews_to_check() where kind = 'report') = 1, 'report listed';
+  assert (select count(*) from reviews_to_check() where kind = 'flag') = 3, 'flags listed';
+  assert (select note from reviews_about(u('c1'), 'traveler') where note is not null limit 1) = 'She was lovely', 'admin reads the private note';
+end $$;
+select decide_report(id('r1'), true);
+set local role anon;
+select set_config('request.jwt.claim.sub', '', true);
+do $$ begin assert not exists (select 1 from reviews where id = id('r1')), 'hidden after the report'; end $$;
+set local role authenticated;
+select as_user('c1');
+do $$ begin assert (select count(*) from review_notes) = 0, 'notes still private'; end $$;
+
+-- 11. Blocking a receiver closes what isn't paid; their paid order carries on; new requests, prices and payments are refused.
+reset role;
+select order_in('s_paid', 'd1', '10000000-0000-0000-0000-000000000001', 'paid');
+select order_in('s_wait', 'd1', '10000000-0000-0000-0000-000000000001', 'awaiting_payment');
+select as_user('d1');
+with q as (insert into requests (kind, countries, needed_by, item_name, item_url, unit_price, currency)
+  values ('open', '{AE}', addis_today() + 10, 'Sami open', 'https://a.com/w', 10, 'AED') returning id) insert into ids select 's_open', q.id from q;
+select as_user('c2');
+insert into ids select 's_offer', make_offer(id('s_open'), '10000000-0000-0000-0000-000000000002', 300);
+select as_user('a1');
+select must_fail($$select resolve_flag(flag_of('d1'), 'revoke')$$, 'revoke a receiver', 'not an option');
+select resolve_flag(flag_of('d1'), 'block');
+do $$ begin
+  assert exists (select 1 from blocked_receivers where user_id = u('d1')), 'blocked';
+  assert (select status from requests where id = id('s_open')) = 'cancelled', 'open request closed';
+  assert (select status from offers where id = id('s_offer')) = 'closed', 'pending offer closed';
+  assert notes_like('c2', '%Sami open%closed%') >= 1, 'traveler told';
+  assert (select status from requests where id = id('s_wait')) = 'cancelled', 'unpaid order closed';
+  assert (select status from requests where id = id('s_paid')) = 'paid', 'paid order carries on';
+end $$;
+set local role authenticated;
+select as_user('d1');
+select must_fail($$insert into requests (kind, trip_id, item_name, item_url, unit_price, currency) values ('trip', '10000000-0000-0000-0000-000000000001', 'x', 'https://a.com', 10, 'AED')$$, 'blocked receiver posts', 'can''t make new requests');
+select must_fail($$select accept_offer(id('s_offer'))$$, 'blocked receiver accepts', 'can''t make new requests');
+select must_fail($$select submit_payment(id('s_wait'), 'telebirr', 'x/y.jpg')$$, 'blocked receiver pays', 'can''t make new requests');
+reset role;
+select as_user('a1');
+select unblock_receiver(u('d1'));
+set local role authenticated;
+select as_user('d1');
+insert into requests (kind, trip_id, item_name, item_url, unit_price, currency) values ('trip', '10000000-0000-0000-0000-000000000001', 'After unblock', 'https://a.com', 10, 'AED');
+
+-- 12. Revoking a flagged traveler uses the existing revoke.
+select as_user('a1');
+select resolve_flag(flag_of('c2'), 'revoke');
+do $$ begin assert not is_verified_traveler(u('c2')), 'Dawit revoked'; end $$;
+select must_fail($$select resolve_flag(flag_of('c1'), 'block')$$, 'block a traveler', 'not an option');
 
 rollback;
