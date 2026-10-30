@@ -36,6 +36,7 @@ export async function saveRequest(f: ItemFieldsState, where: Where): Promise<{ i
   if (error || !data) {
     const m = error?.message ?? "";
     if (m.includes("please remove")) return { error: CONTACT_ERROR };
+    if (m.includes("can't make new requests")) return { error: "Your account can't make new requests. Contact support." };
     if (m.includes("trip is not available")) return { error: "This trip is no longer taking requests." };
     return { error: "Couldn't send. Please try again." };
   }

@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/components/auth/use-require-auth";
 import { btn, OfferCard, ReasonPicker, type Offer, type OfferEvent } from "@/components/orders/offer-card";
 import { AfterPaid, type AfterPaidRequest } from "@/components/orders/after-paid";
+import { OrderReviews } from "@/components/reviews/order-reviews";
+import { PersonReviews } from "@/components/reviews/person-reviews";
 import { PaymentSection, type LatestPayment } from "@/components/orders/payment-section";
 import { TakeHomeLine, useFeePct } from "@/components/orders/take-home";
 import { createClient } from "@/lib/supabase/client";
@@ -18,7 +20,7 @@ export type Request = AfterPaidRequest & {
   id: string; kind: "trip" | "open"; receiver_id: string; traveler_id: string | null; trip_id: string | null; status: string;
   item_name: string; item_url: string | null; screenshot_path: string | null; quantity: number; notes: string | null;
   unit_price: number; currency: string; item_etb: number; reward_etb: number | null; total_etb: number | null;
-  countries: Country[] | null; needed_by: string | null; answer_due_at: string | null; payment_due_at: string | null; decline_reason: string | null;
+  countries: Country[] | null; needed_by: string | null; answer_due_at: string | null; payment_due_at: string | null; decline_reason: string | null; review_open_at: string | null;
 };
 
 // Database messages a person can act on; anything else is a generic failure. The page reloads either way.
@@ -269,6 +271,10 @@ export function OrderDetail({ id }: { id: string }) {
       {(["paid", "purchased", "landed", "delivered", "paid_out"].includes(r.status) || r.refund_decided_at) && (
         <AfterPaid req={r} viewer={viewer} travelerName={travelerName(r.traveler_id)} receiverName={receiverName} now={now} busy={busy} act={act} reload={load} />
       )}
+      {r.review_open_at && (uid === r.receiver_id || uid === r.traveler_id) && (
+        <OrderReviews requestId={r.id} openAt={r.review_open_at} uid={uid} viewer={viewer} other={viewer === "receiver" ? travelerName(r.traveler_id) : receiverName} now={now} />
+      )}
+      {viewer === "traveler" && uid !== r.receiver_id && <PersonReviews personId={r.receiver_id} side="receiver" name={receiverName} />}
 
       {canCancel &&
         (mode === "cancel" ? (

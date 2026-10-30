@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MIN_REVIEWS } from "@/lib/reviews";
 import { format, parseISO } from "date-fns";
 import { ArrowRight, Plane, Star, User } from "@/components/icons";
 import { AE, CN, ET, GB, US } from "country-flag-icons/react/3x2";
@@ -13,7 +14,7 @@ const flags = { US, GB, CN, AE };
 const flagClass = "h-8 w-12 shrink-0 rounded-[3px] ring-1 ring-border"; // ring keeps white flag edges visible on white stock
 
 export const ratingLabel = (trip: Trip) =>
-  trip.reviewCount > 0 ? `Rated ${trip.rating.toFixed(1)} out of 5, ${trip.reviewCount} ${trip.reviewCount === 1 ? "review" : "reviews"}` : "No reviews yet";
+  trip.reviewCount >= MIN_REVIEWS ? `Rated ${trip.rating.toFixed(1)} out of 5, ${trip.reviewCount} ${trip.reviewCount === 1 ? "review" : "reviews"}` : "No reviews yet";
 
 const tagClass = "group relative block overflow-hidden rounded-t-2xl rounded-b-md border bg-card shadow-[0_1px_2px_rgb(20_36_29/0.06)]";
 
@@ -46,7 +47,7 @@ export function TripTag({ trip, static: isStatic = false, revealPhoto = false }:
           {trip.verified && <VerifiedBadge size={16} variant={isStatic ? "shimmer" : "static"} />}
           <span className="shrink-0">· {trip.freeKg} kg free</span>
         </span>
-        {trip.reviewCount > 0 ? (
+        {trip.reviewCount >= MIN_REVIEWS ? (
           <span className="ml-auto flex shrink-0 items-center gap-1 text-sm">
             <Star aria-hidden className="size-3.5" />
             <span aria-hidden>

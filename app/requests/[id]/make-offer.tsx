@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, invalidProps } from "@/components/request/item-fields";
 import { TakeHomeLine, useFeePct } from "@/components/orders/take-home";
+import { PersonReviews } from "@/components/reviews/person-reviews";
 import { VerificationStatus } from "@/components/traveler/verification-status";
 import { createClient } from "@/lib/supabase/client";
 import { etb, parseEtb } from "@/lib/money";
@@ -128,6 +129,7 @@ export function MakeOffer({ id }: { id: string }) {
           Send offer
         </Button>
       </form>
+      <PersonReviews personId={r.receiver_id} side="receiver" name={r.receiverName} />
     </>
   );
 }
