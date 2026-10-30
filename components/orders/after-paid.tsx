@@ -159,7 +159,11 @@ export function AfterPaid({ req: r, viewer, travelerName, receiverName, now, bus
 
       {viewer === "receiver" && !x.confirmed && ["paid", "purchased", "landed"].includes(r.status) && (
         <div className="mt-5">
-          <PhoneCheck title="Confirm your number" hint={`You'll see ${travelerName}'s number once they're in Addis.`} onDone={done} />
+          <PhoneCheck
+            title="Confirm your number"
+            hint={r.status === "landed" ? `${travelerName} is in Addis. Confirm yours to see their number.` : `You'll see ${travelerName}'s number once they're in Addis.`}
+            onDone={done}
+          />
         </div>
       )}
 
