@@ -115,7 +115,7 @@ begin
     update trips set shop_by = c.new_shop_by, arrival_date = c.new_arrival, proof_path = c.proof_path where id = t.id;
     perform set_config('zakbis.deciding', 'off', true);
     -- Deadlines that read the trip (buying, In Addis, no-show) follow it; an earlier buying extension no longer applies.
-    for x in update requests r set buy_due_at = null, flight_moved_at = now(), flight_kept_at = null, updated_at = now()
+    for x in update requests r set buy_due_at = null, buy_reminded = false, arrival_reminded = false, flight_moved_at = now(), flight_kept_at = null, updated_at = now()
              where r.trip_id = t.id and (r.status in ('paid', 'purchased') or (r.status = 'awaiting_payment' and has_pending_escrow(r.id)))
              returning r.id, r.receiver_id, r.item_name loop
       perform notify(x.receiver_id, 'receiver', x.id, format('%s''s flight moved. Your %s now arrives around %s. Keep the order or cancel for a full refund.',
@@ -328,4 +328,69 @@ begin
       perform notify(x.traveler_id, 'traveler', x.id, format('A week left to review %s for %s.', receiver_name(x.receiver_id), x.item_name));
     end if;
   end loop;
+end $$;
+
+-- Fields only Zakbis sets are reset on every new request (covers the 0011-0013 columns). --------------------------
+
+create or replace function requests_before_insert() returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  shop date;
+begin
+  new.receiver_id := auth.uid();
+  if new.receiver_id is null then raise exception 'login required'; end if;
+  if is_blocked_receiver(new.receiver_id) then raise exception 'your account can''t make new requests'; end if;
+  if (select first_name from profiles where id = new.receiver_id) is null then raise exception 'set up your receiver side first'; end if;
+  if has_contact(new.item_name) or has_contact(new.notes) then raise exception 'please remove phone numbers, @handles, emails and links'; end if;
+  new.status := 'open';
+  new.reward_etb := null; -- the traveler names it; it's fixed when a price is accepted
+  new.receipt_path := null;
+  new.accepted_at := null;
+  new.purchased_at := null;
+  new.landed_at := null;
+  new.answer_due_at := null;
+  new.answer_reminded := false;
+  new.payment_due_at := null;
+  new.payment_left := null;
+  new.payment_reminded := false;
+  new.decline_reason := null;
+  new.fee_pct := fee_pct(); -- the cut is Zakbis's to set, never the browser's
+  -- Everything after payment is Zakbis's to set too: a preset flag could fake a refund, a review window or a hold.
+  new.item_photo_path := null; new.photo_status := null; new.photo_reason := null; new.photo_due_at := null;
+  new.buy_due_at := null; new.hold := null; new.held_at := null; new.refund_decided_at := null; new.handover_due_at := null;
+  new.delivered_by_timeout := false; new.buy_reminded := false; new.arrival_reminded := false; new.handover_reminders := 0;
+  new.review_open_at := null; new.review_reminded := false;
+  new.flight_moved_at := null; new.flight_kept_at := null; new.no_review := false;
+  select etb_per_unit into new.fx_rate from fx_rates where currency = new.currency;
+  if not found then raise exception 'no fx rate for %', new.currency; end if;
+
+  if new.kind = 'trip' then
+    select traveler_id, shop_by into new.traveler_id, shop from trips where id = new.trip_id and shop_by >= addis_today() and status = 'live';
+    if not found then raise exception 'trip is not available'; end if;
+    if new.traveler_id = new.receiver_id then raise exception 'cannot request on your own trip'; end if;
+    if not is_verified_traveler(new.traveler_id) then raise exception 'this traveler is not verified'; end if;
+    new.answer_due_at := least(now() + interval '48 hours', end_of_addis_day(shop));
+    new.answer_reminded := new.answer_due_at - now() <= interval '24 hours';
+  else
+    new.traveler_id := null;
+    new.trip_id := null;
+    if new.needed_by is null or new.needed_by not between addis_today() + 3 and addis_today() + 60 then
+      raise exception 'needed by must be 3 to 60 days ahead';
+    end if;
+  end if;
+  return new;
+end $$;
+
+-- Trip rules: an admin may cancel a trip whose paid orders were just refunded. -----------------------------------------
+
+create or replace function trips_rules() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  -- Only a new or changed note: an old one must never lock the trip out of cancelling or approval.
+  if (tg_op = 'INSERT' or new.note is distinct from old.note) and has_contact(new.note) then raise exception 'please remove phone numbers, @handles, emails and links'; end if;
+  -- An admin approving a cancelled flight has already refunded the paid orders; one already in Addis carries on.
+  if tg_op = 'UPDATE' and old.status = 'live' and new.status <> 'live'
+     and not (current_setting('zakbis.deciding', true) = 'on' and is_admin())
+     and exists (select 1 from requests where trip_id = new.id and status in ('paid', 'purchased', 'landed')) then
+    raise exception 'this trip has paid orders. Contact support to change it';
+  end if;
+  return new;
 end $$;

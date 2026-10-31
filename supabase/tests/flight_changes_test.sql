@@ -195,4 +195,54 @@ do $$ begin
   assert (select status from requests where id = id('d_noshow')) = 'cancelled', 'no-show refunded after the decision';
 end $$;
 
+-- 8. A receiver can't preset what only Zakbis sets (refund flags, review window, holds, flight-move state).
+set local role authenticated;
+select as_user('b1');
+insert into requests (kind, trip_id, item_name, item_url, unit_price, currency, no_review, flight_moved_at, flight_kept_at,
+                      review_open_at, refund_decided_at, hold, buy_due_at, photo_status, handover_due_at, delivered_by_timeout)
+  values ('trip', '10000000-0000-0000-0000-000000000001', 'Sneaky', 'https://a.com/x', 10, 'AED', true, now(), now(),
+          now(), now(), 'cant_reach', now() + interval '30 days', 'ok', now(), true);
+reset role;
+do $$ declare r requests; begin
+  select * into r from requests where item_name = 'Sneaky';
+  assert not r.no_review and r.flight_moved_at is null and r.flight_kept_at is null, 'flight state reset';
+  assert r.review_open_at is null and r.refund_decided_at is null and r.hold is null and r.buy_due_at is null, 'refund, review and hold state reset';
+  assert r.photo_status is null and r.handover_due_at is null and not r.delivered_by_timeout, 'after-paid state reset';
+end $$;
+
+-- 9. A cancellation still goes through when someone is already in Addis: that order carries on, the rest are refunded.
+select set_config('request.jwt.claim.sub', '', true);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status, proof_path) values
+  ('10000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live', '00000000-0000-0000-0000-0000000000c1/t.pdf');
+select order_in('e_paid', 'b1', '10000000-0000-0000-0000-000000000004', 'paid');
+select order_in('e_land', 'b2', '10000000-0000-0000-0000-000000000004', 'paid');
+set local role authenticated;
+select as_user('c1');
+insert into ids select 'ch5', request_flight_change('10000000-0000-0000-0000-000000000004', 'cancelled');
+reset role;
+update requests set status = 'landed' where id = id('e_land');
+set local role authenticated;
+select as_user('a1');
+select decide_flight_change(id('ch5'), true);
+reset role;
+do $$ begin
+  assert (select status from requests where id = id('e_paid')) = 'cancelled', 'paid order refunded';
+  assert (select status from requests where id = id('e_land')) = 'landed', 'order in Addis carries on';
+  assert (select status from trips where id = '10000000-0000-0000-0000-000000000004') = 'cancelled', 'trip cancelled';
+end $$;
+
+-- 10. A move re-arms the buying and arrival reminders for the new dates.
+select set_config('request.jwt.claim.sub', '', true);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status, proof_path) values
+  ('10000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() + 3, addis_today() + 5, 6, 'live', '00000000-0000-0000-0000-0000000000c1/t.pdf');
+select order_in('m_paid', 'b1', '10000000-0000-0000-0000-000000000005', 'paid');
+update requests set buy_reminded = true, arrival_reminded = true where id = id('m_paid');
+set local role authenticated;
+select as_user('c1');
+insert into ids select 'ch6', request_flight_change('10000000-0000-0000-0000-000000000005', 'moved', addis_today() + 12, addis_today() + 14, '00000000-0000-0000-0000-0000000000c1/new.pdf');
+select as_user('a1');
+select decide_flight_change(id('ch6'), true);
+reset role;
+do $$ begin assert (select not buy_reminded and not arrival_reminded from requests where id = id('m_paid')), 'reminders re-armed'; end $$;
+
 rollback;
