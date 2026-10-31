@@ -133,4 +133,66 @@ set local role authenticated;
 select as_user('c1');
 select must_fail($$select request_flight_change('10000000-0000-0000-0000-000000000001', 'cancelled')$$, 'someone already in Addis', 'Contact support');
 
+-- 6. Approving a cancelled flight: paid and bought orders refunded (no reviews), screenshots go to Payment checks, the rest closes.
+reset role;
+select order_in('k_paid', 'b1', '10000000-0000-0000-0000-000000000002', 'paid');
+select order_in('k_bought', 'b2', '10000000-0000-0000-0000-000000000002', 'purchased');
+select order_in('k_wait', 'd1', '10000000-0000-0000-0000-000000000002', 'awaiting_payment');
+select order_in('k_open', 'd1', '10000000-0000-0000-0000-000000000002', 'open');
+insert into payments (request_id, kind, amount_etb, proof_path, method) values (id('k_wait'), 'escrow', 100, '00000000-0000-0000-0000-0000000000d1/p.jpg', 'telebirr');
+insert into payments (request_id, kind, amount_etb, proof_path, method, status) values
+  (id('k_paid'), 'escrow', 100, '00000000-0000-0000-0000-0000000000b1/p.jpg', 'telebirr', 'confirmed'),
+  (id('k_bought'), 'escrow', 100, '00000000-0000-0000-0000-0000000000b2/p.jpg', 'bank', 'confirmed');
+update payments set status = 'confirmed' where request_id in (id('k_paid'), id('k_bought'));
+set local role authenticated;
+select as_user('c1');
+insert into ids select 'ch3', request_flight_change('10000000-0000-0000-0000-000000000002', 'cancelled');
+select as_user('a1');
+select decide_flight_change(id('ch3'), true);
+do $$ begin
+  assert (select count(*) from orders_to_act() where kind = 'refund' and request_id in (id('k_paid'), id('k_bought'))) = 2, 'both refunds queued';
+  assert (select trip_changed from payments_to_check() where request_id = id('k_wait')), 'screenshot listed as trip changed';
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from requests where id in (id('k_paid'), id('k_bought')) and status = 'cancelled' and refund_decided_at is not null and no_review and review_open_at is null) = 2, 'refunded without reviews';
+  assert notes_like('b1', '%flight was cancelled. We''ll refund you%') = 1, 'receiver told';
+  assert (select status from requests where id = id('k_wait')) = 'awaiting_payment', 'screenshot order waits for the admin';
+  assert notes_like('d1', '%flight was cancelled. We''ll refund you once we''ve checked your payment%') = 1, 'screenshot receiver told';
+  assert (select status from requests where id = id('k_open')) = 'cancelled', 'unpaid request closed';
+  assert (select status from trips where id = '10000000-0000-0000-0000-000000000002') = 'cancelled', 'trip cancelled';
+  assert notes_like('c1', 'Zakbis cancelled your trip and is refunding your receivers.') = 1, 'traveler told';
+end $$;
+
+-- 7. While a change waits, the deadlines that would blame the traveler hold off; once it's decided they run.
+select set_config('request.jwt.claim.sub', '', true);
+insert into trips (id, traveler_id, origin_country, origin_city, origin_airport, shop_by, arrival_date, free_kg, status, proof_path) values
+  ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000c1', 'AE', 'Dubai', 'DXB', addis_today() - 10, addis_today() - 8, 6, 'live', '00000000-0000-0000-0000-0000000000c1/t.pdf');
+select order_in('d_buy', 'b1', '10000000-0000-0000-0000-000000000001', 'paid');
+select order_in('d_swap', 'b2', '10000000-0000-0000-0000-000000000001', 'purchased');
+select order_in('d_noshow', 'd1', '10000000-0000-0000-0000-000000000001', 'purchased');
+update requests set trip_id = '10000000-0000-0000-0000-000000000003' where id in (id('d_buy'), id('d_swap'), id('d_noshow'));
+update requests set photo_status = 'rejected', photo_reason = 'other' where id = id('d_swap');
+update requests set photo_status = 'ok' where id = id('d_noshow');
+set local role authenticated;
+select as_user('c1');
+insert into ids select 'ch4', request_flight_change('10000000-0000-0000-0000-000000000003', 'cancelled');
+reset role;
+select run_deadlines();
+do $$ begin
+  assert (select hold from requests where id = id('d_buy')) is null, 'no not-bought hold while pending';
+  assert (select status from requests where id = id('d_swap')) = 'purchased', 'no missed-swap refund while pending';
+  assert (select status from requests where id = id('d_noshow')) = 'purchased', 'no no-show refund while pending';
+end $$;
+set local role authenticated;
+select as_user('a1');
+select decide_flight_change(id('ch4'), false, 'No airline notice');
+reset role;
+select run_deadlines();
+do $$ begin
+  assert (select hold from requests where id = id('d_buy')) = 'not_bought', 'deadline runs after the decision';
+  assert (select status from requests where id = id('d_swap')) = 'cancelled', 'missed swap refunded after the decision';
+  assert (select status from requests where id = id('d_noshow')) = 'cancelled', 'no-show refunded after the decision';
+end $$;
+
 rollback;
