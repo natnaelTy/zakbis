@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { FlightChangeForm } from "@/components/trips/flight-change-form";
 import { format, parseISO } from "date-fns";
 import { ShieldWarning } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -23,15 +24,18 @@ const known = (m: string | undefined, fallback: string) =>
 export function TripDetail({ id }: { id: string }) {
   const [trip, setTrip] = useState<MyTrip | null>();
   const [failed, setFailed] = useState(false);
-  const [mode, setMode] = useState<"view" | "resubmit" | "edit" | "cancel">("view");
+  const [mode, setMode] = useState<"view" | "resubmit" | "edit" | "cancel" | "flight">("view");
+  const [change, setChange] = useState<{ paid_orders: number; pending_change: string | null }>();
   const [kg, setKg] = useState("");
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<{ text: string; error?: boolean }>();
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const { data, error } = await createClient().rpc("my_trips");
+    const supabase = createClient();
+    const [{ data, error }, state] = await Promise.all([supabase.rpc("my_trips"), supabase.rpc("trip_change_state", { p_trip: id }).maybeSingle()]);
     if (error) return setFailed(true);
+    setChange((state.data as { paid_orders: number; pending_change: string | null } | null) ?? undefined);
     setTrip(((data as MyTrip[] | null) ?? []).find((t) => t.id === id) ?? null);
     setMode("view");
     setMessage(undefined); // a message belongs to the action that set it, not to the reloaded trip
@@ -47,6 +51,8 @@ export function TripDetail({ id }: { id: string }) {
   if (trip === undefined) return <p className="mt-6 text-base text-muted-foreground">Loading…</p>;
   if (trip === null) return <p className="mt-6 text-base text-muted-foreground">Trip not found</p>;
   const t = trip;
+  // Paid orders: dates and cancellation go through Zakbis (My flight changed) instead of the traveler.
+  const locked = t.status === "live" && (change?.paid_orders ?? 0) > 0;
 
   async function viewTicket() {
     const tab = window.open("", "_blank"); // opened before the await so phone browsers don't block it
@@ -135,9 +141,11 @@ export function TripDetail({ id }: { id: string }) {
         )}
         {(t.status === "checking" || t.status === "live") && (
           <>
-            <Button variant="outline" className={action} onClick={() => setMode("resubmit")}>
-              Change date
-            </Button>
+            {!locked && (
+              <Button variant="outline" className={action} onClick={() => setMode("resubmit")}>
+                Change date
+              </Button>
+            )}
             <Button
               variant="outline"
               className={action}
@@ -147,12 +155,21 @@ export function TripDetail({ id }: { id: string }) {
             </Button>
           </>
         )}
-        {t.status !== "cancelled" && (
+        {t.status !== "cancelled" && !locked && (
           <Button variant="outline" className={`${action} text-destructive`} onClick={() => setMode("cancel")}>
             Cancel trip
           </Button>
         )}
+        {locked && !change?.pending_change && (
+          <Button variant="outline" className={action} onClick={() => (setMessage(undefined), setMode("flight"))}>
+            My flight changed
+          </Button>
+        )}
       </div>
+      {locked && change?.pending_change && (
+        <p role="status" className="mt-4 rounded-xl border bg-card p-4 text-base font-semibold">Zakbis is checking your flight change.</p>
+      )}
+      {mode === "flight" && <FlightChangeForm tripId={t.id} onDone={load} onBack={() => setMode("view")} />}
 
       {mode === "edit" && (
         <form onSubmit={saveKg} noValidate className="mt-4 space-y-3 rounded-xl border bg-card p-4">

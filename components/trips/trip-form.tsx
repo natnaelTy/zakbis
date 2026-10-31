@@ -12,6 +12,7 @@ import { addisToday, countryLabel, type Country } from "@/lib/open-requests";
 import { loadMyVerification } from "@/components/traveler/verification-status";
 import { firstBadStep, isRecheck, needsNewProof as proofNeeded, PROOF_TYPES, proofError, STEP_FIELDS, tripErrors, type TripDraft, type TripStatus } from "@/lib/trip-post";
 import { cn } from "@/lib/utils";
+import { uploadTicket } from "./upload-ticket";
 
 const HEADINGS = ["Your ticket", "Your trip", "Space and shopping"];
 // trips_guard's messages, shown as written; anything else gets the generic error.
@@ -80,10 +81,9 @@ export function TripForm({ initial, onDone }: { initial?: TripFormInitial; onDon
     if (!auth.user) return (setBusy(false), setFailed("Please sign in again."));
     let proof_path = initial?.proof_path ?? "";
     if (file) {
-      const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1].replace("jpeg", "jpg");
-      proof_path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
-      const up = await supabase.storage.from("tickets").upload(proof_path, file, { contentType: file.type });
-      if (up.error) return (setBusy(false), setFailed("Couldn't upload your ticket. Please try again."));
+      const up = await uploadTicket(file);
+      if ("error" in up) return (setBusy(false), setFailed(up.error));
+      proof_path = up.path;
     }
     const row = {
       origin_country: d.origin_country as Country,

@@ -21,6 +21,7 @@ export type Request = AfterPaidRequest & {
   item_name: string; item_url: string | null; screenshot_path: string | null; quantity: number; notes: string | null;
   unit_price: number; currency: string; item_etb: number; reward_etb: number | null; total_etb: number | null;
   countries: Country[] | null; needed_by: string | null; answer_due_at: string | null; payment_due_at: string | null; decline_reason: string | null; review_open_at: string | null;
+  flight_moved_at: string | null; flight_kept_at: string | null;
 };
 
 // Database messages a person can act on; anything else is a generic failure. The page reloads either way.
@@ -48,7 +49,7 @@ export function OrderDetail({ id }: { id: string }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
-  const [mode, setMode] = useState<"price" | "decline" | "cancel" | null>(null);
+  const [mode, setMode] = useState<"price" | "decline" | "cancel" | "flight_refund" | null>(null);
   const [price, setPrice] = useState("");
   const [now, setNow] = useState(() => new Date());
   const feePct = useFeePct();
@@ -267,6 +268,30 @@ export function OrderDetail({ id }: { id: string }) {
       )}
       {r.status === "awaiting_payment" && viewer === "traveler" && (
         <p className="mt-5 text-base text-muted-foreground">{payment?.status === "pending" ? "Payment sent. Zakbis is checking it." : `Waiting for ${receiverName} to pay`}</p>
+      )}
+      {viewer === "receiver" && r.flight_moved_at && !r.flight_kept_at && (r.status === "paid" || r.status === "purchased") && (
+        <section role="region" aria-label="Flight moved" className="mt-5 space-y-3 rounded-xl border border-brand-text/30 bg-card p-4">
+          <p className="text-base font-semibold">{travelerName(r.traveler_id)}&apos;s flight moved. Keep your order or cancel for a full refund.</p>
+          {mode === "flight_refund" ? (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="destructive" className={btn} disabled={busy} onClick={() => void act("cancel_after_move", { p_request: r.id })}>
+                Cancel and refund {r.total_etb ? etb(r.total_etb) : ""}
+              </Button>
+              <Button variant="outline" className={btn} onClick={() => setMode(null)}>
+                Back
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <Button className={btn} disabled={busy} onClick={() => void act("keep_after_move", { p_request: r.id })}>
+                Keep my order
+              </Button>
+              <Button variant="outline" className={`${btn} text-destructive`} onClick={() => setMode("flight_refund")}>
+                Cancel and refund
+              </Button>
+            </div>
+          )}
+        </section>
       )}
       {(["paid", "purchased", "landed", "delivered", "paid_out"].includes(r.status) || r.refund_decided_at) && (
         <AfterPaid req={r} viewer={viewer} travelerName={travelerName(r.traveler_id)} receiverName={receiverName} now={now} busy={busy} act={act} reload={load} />
